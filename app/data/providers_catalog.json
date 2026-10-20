@@ -1,0 +1,206 @@
+{
+  "selectel": {
+    "id": "selectel",
+    "name": "Selectel CDN",
+    "color": "#0016ff",
+    "default_free_gb": 100.0,
+    "default_price_per_gb": 1.50,
+    "fields": [
+      {
+        "key": "api_token",
+        "label": "API-токен (Selectel API Key)",
+        "type": "password",
+        "placeholder": "sel_api_xxxxxxxxxxxxxxxx",
+        "required": true,
+        "help": "Сервисный токен из панели управления Selectel"
+      }
+    ],
+    "help": {
+      "title": "Инструкция для Selectel",
+      "portal_url": "https://my.selectel.ru/profile/service-users",
+      "portal_label": "Открыть панель Selectel",
+      "steps": [
+        "Войдите в панель управления Selectel (my.selectel.ru).",
+        "Перейдите в «Профиль» (в правом верхнем углу) → «Управление пользователями» → вкладка «Сервисные пользователи» или «API-ключи».",
+        "Создайте нового сервисного пользователя с ролью «Администратор» или «Просмотр CDN и биллинга».",
+        "Выпустите API-токен и скопируйте его значение в поле выше."
+      ],
+      "notes": "Selectel предоставляет удобный REST API для чтения баланса и CDN доменов."
+    }
+  },
+  "yandex": {
+    "id": "yandex",
+    "name": "Yandex Cloud CDN",
+    "color": "#fc3f1d",
+    "default_free_gb": 0.0,
+    "default_price_per_gb": 1.20,
+    "fields": [
+      {
+        "key": "oauth_token",
+        "label": "OAuth или IAM-токен",
+        "type": "password",
+        "placeholder": "y0_AgAAAA...",
+        "required": true,
+        "help": "OAuth-токен от oauth.yandex.ru или IAM-токен сервисного аккаунта"
+      },
+      {
+        "key": "folder_id",
+        "label": "Folder ID (Каталог)",
+        "type": "text",
+        "placeholder": "b1gxxxxxxxxxxxxxxxxx",
+        "required": true,
+        "help": "Идентификатор каталога Yandex Cloud, где размещен CDN"
+      }
+    ],
+    "help": {
+      "title": "Инструкция для Yandex Cloud",
+      "portal_url": "https://console.yandex.cloud/",
+      "portal_label": "Открыть Yandex Cloud Console",
+      "steps": [
+        "Перейдите в консоль Yandex Cloud и выберите ваш каталог (Folder ID указан в URL и заголовке каталога).",
+        "Для получения OAuth-токена перейдите по ссылке https://oauth.yandex.ru/authorize?response_type=token&client_id=1a6990aa636648e9b2ef855fa7bec2fb или создайте сервисный аккаунт с ролью `cdn.viewer` и `viewer`.",
+        "Скопируйте Folder ID каталога и токен доступа в форму."
+      ],
+      "notes": "Если включен биллинг нескольких каталогов, баланс подтягивается из привязанного платежного аккаунта."
+    }
+  },
+  "vk": {
+    "id": "vk",
+    "name": "VK Cloud CDN",
+    "color": "#0077ff",
+    "default_free_gb": 0.0,
+    "default_price_per_gb": 1.40,
+    "fields": [
+      {
+        "key": "api_token",
+        "label": "API-токен / Keystone Token",
+        "type": "password",
+        "placeholder": "vk_api_xxxxxxxxxxxxxxxx",
+        "required": true,
+        "help": "API ключ из настроек безопасности VK Cloud"
+      },
+      {
+        "key": "project_id",
+        "label": "Project ID (Идентификатор проекта)",
+        "type": "text",
+        "placeholder": "mcs_proj_xxxxxxxx",
+        "required": false,
+        "help": "Идентификатор проекта в панели управления"
+      }
+    ],
+    "help": {
+      "title": "Инструкция для VK Cloud (MCS)",
+      "portal_url": "https://mcs.mail.ru/app/settings/api",
+      "portal_label": "Открыть VK Cloud Console",
+      "steps": [
+        "Авторизуйтесь в панели VK Cloud (mcs.mail.ru).",
+        "Перейдите в «Настройки проекта» → «Безопасность» → «API-ключи».",
+        "Создайте новый API-ключ или сгенерируйте токен доступа с доступом к CDN и балансу проекта.",
+        "Скопируйте токен и (при необходимости) Project ID в форму."
+      ],
+      "notes": "VK Cloud тарифицирует исходящий CDN трафик по гигабайтам в соответствии с тарифной сеткой проекта."
+    }
+  },
+  "mts": {
+    "id": "mts",
+    "name": "MTS Web Services (CloudMTS)",
+    "color": "#e30611",
+    "default_free_gb": 50.0,
+    "default_price_per_gb": 1.30,
+    "fields": [
+      {
+        "key": "api_key",
+        "label": "API-ключ MTS Cloud",
+        "type": "password",
+        "placeholder": "mts_key_xxxxxxxxxxxxxxxx",
+        "required": true,
+        "help": "Ключ доступа из Личного кабинета CloudMTS"
+      },
+      {
+        "key": "tenant_id",
+        "label": "ID организации / Тенанта",
+        "type": "text",
+        "placeholder": "org_xxxxxxxx",
+        "required": false,
+        "help": "Опциональный ID организации в CloudMTS"
+      }
+    ],
+    "help": {
+      "title": "Инструкция для MTS Web Services",
+      "portal_url": "https://cloud.mts.ru/",
+      "portal_label": "Открыть панель CloudMTS",
+      "steps": [
+        "Войдите в личный кабинет CloudMTS (cloud.mts.ru).",
+        "Перейдите в раздел «Профиль» → «Управление доступом» → «API-ключи».",
+        "Сгенерируйте API-ключ с правами чтения баланса и CDN сервисов.",
+        "Вставьте сгенерированный ключ в форму."
+      ],
+      "notes": "MTS Web Services поддерживает выделенные CDN зоны и кэширование статики."
+    }
+  },
+  "timeweb": {
+    "id": "timeweb",
+    "name": "Timeweb Cloud CDN",
+    "color": "#2060ff",
+    "default_free_gb": 0.0,
+    "default_price_per_gb": 1.60,
+    "fields": [
+      {
+        "key": "api_token",
+        "label": "API-токен Timeweb Cloud",
+        "type": "password",
+        "placeholder": "Bearer eyJhbGciOi...",
+        "required": true,
+        "help": "Токен из раздела API панель timeweb.cloud"
+      }
+    ],
+    "help": {
+      "title": "Инструкция для Timeweb Cloud",
+      "portal_url": "https://timeweb.cloud/api-tokens",
+      "portal_label": "Открыть API-токены Timeweb",
+      "steps": [
+        "Войдите в timeweb.cloud под вашим логином.",
+        "Нажмите на аватар профиля в правом верхнем углу → «Токены API» (или перейдите по ссылке https://timeweb.cloud/api-tokens).",
+        "Нажмите «Выпустить токен», задайте имя (например, CDN-Split) и выберите права на чтение баланса и сервисов.",
+        "Скопируйте сгенерированный токен."
+      ],
+      "notes": "Timeweb Cloud API позволяет проверять точный баланс и список доменных зон с CDN."
+    }
+  },
+  "beget": {
+    "id": "beget",
+    "name": "Beget CDN",
+    "color": "#00aa5b",
+    "default_free_gb": 0.0,
+    "default_price_per_gb": 1.50,
+    "fields": [
+      {
+        "key": "login",
+        "label": "Логин аккаунта Beget",
+        "type": "text",
+        "placeholder": "my_beget_login",
+        "required": true,
+        "help": "Логин, с которым входите в панель Beget"
+      },
+      {
+        "key": "password",
+        "label": "API-пароль / Пароль от аккаунта",
+        "type": "password",
+        "placeholder": "••••••••••••",
+        "required": true,
+        "help": "Пароль от аккаунта или сгенерированный API-пароль"
+      }
+    ],
+    "help": {
+      "title": "Инструкция для Beget",
+      "portal_url": "https://cp.beget.com/",
+      "portal_label": "Открыть панель Beget",
+      "steps": [
+        "Перейдите в панель управления Beget (cp.beget.com).",
+        "Перейдите в «Безопасность» → «API и вебхуки» или используйте учетные данные вашего аккаунта с включенным доступом к API.",
+        "Укажите ваш логин и API-пароль."
+      ],
+      "notes": "Beget предоставляет RPC API для получения баланса и управления сайтами."
+    }
+  }
+}

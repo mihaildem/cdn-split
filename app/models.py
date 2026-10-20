@@ -5,10 +5,42 @@ from __future__ import annotations
 from typing import Any, Literal
 from pydantic import BaseModel, Field
 
-
-ConsumerType = Literal["misha", "max", "split"]
-PayerType = Literal["misha", "max"]
+ConsumerType = str  # participant id or 'split'
+PayerType = str  # participant id
 ProviderType = Literal["yandex", "selectel", "vk", "mts", "timeweb", "beget"]
+
+
+class Participant(BaseModel):
+    id: str
+    name: str
+    color: str = "#38bdf8"
+    is_default: bool = False
+    created_at: str | None = None
+    updated_at: str | None = None
+
+class ParticipantCreate(BaseModel):
+    id: str | None = None
+    name: str
+    color: str = "#38bdf8"
+
+class ParticipantUpdate(BaseModel):
+    name: str | None = None
+    color: str | None = None
+
+class ParticipantStat(BaseModel):
+    id: str
+    name: str
+    color: str
+    paid_total: float
+    consumed_total: float
+    net_balance: float
+
+class DebtTransfer(BaseModel):
+    from_id: str
+    from_name: str
+    to_id: str
+    to_name: str
+    amount: float
 
 
 class AccountCreate(BaseModel):
@@ -24,7 +56,6 @@ class AccountCreate(BaseModel):
     package_cost_rub: float = 0.0
     ignore_bonus: bool = False
     low_balance_threshold: float = 200.0
-
 
 class AccountUpdate(BaseModel):
     name: str | None = None
@@ -51,7 +82,6 @@ class ResourceCreate(BaseModel):
     check_path: str = "/"
     expected_codes: str = "200,204,301,302,400,404"
 
-
 class ResourceUpdate(BaseModel):
     domain: str | None = None
     cname: str | None = None
@@ -61,7 +91,6 @@ class ResourceUpdate(BaseModel):
     custom_cost_rub: float | None = None
     check_path: str | None = None
     expected_codes: str | None = None
-
 
 class ResourceConsumerUpdate(BaseModel):
     consumer: ConsumerType
@@ -122,54 +151,53 @@ class AccountBillingSummary(BaseModel):
 
 
 class SplitwiseOverview(BaseModel):
-    misha_owes_max: float
-    max_owes_misha: float
-    net_balance: float
-    direction: Literal["max_owes_misha", "misha_owes_max", "settled"]
-    summary_text: str
-    misha_paid_total: float
-    max_paid_total: float
-    misha_consumed_total: float
-    max_consumed_total: float
-    total_unsettled_cost: float
-    total_resources_count: int
-    active_resources_count: int
-    down_resources_count: int
-    accounts_count: int
-
+    misha_owes_max: float = 0.0
+    max_owes_misha: float = 0.0
+    net_balance: float = 0.0
+    direction: str = "settled"
+    summary_text: str = "Все взаиморасчеты закрыты (0 ₽)"
+    misha_paid_total: float = 0.0
+    max_paid_total: float = 0.0
+    misha_consumed_total: float = 0.0
+    max_consumed_total: float = 0.0
+    total_unsettled_cost: float = 0.0
+    total_resources_count: int = 0
+    active_resources_count: int = 0
+    down_resources_count: int = 0
+    accounts_count: int = 0
+    participant_stats: list[ParticipantStat] = Field(default_factory=list)
+    transfers: list[DebtTransfer] = Field(default_factory=list)
 
 class DashboardResponse(BaseModel):
     splitwise: SplitwiseOverview
     accounts: list[AccountBillingSummary]
+    participants: list[Participant] = Field(default_factory=list)
     last_updated_at: str
-
 
 class TelegramBotCreate(BaseModel):
     name: str
     bot_token: str
     chat_id: str
-    filter_owner: Literal["all", "misha", "max"] = "all"
+    filter_owner: str = "all"
     notify_low_balance: bool = True
     notify_api_error: bool = True
     notify_cdn_down: bool = True
     notify_settlement: bool = True
 
-
 class TelegramBotUpdate(BaseModel):
     name: str | None = None
     bot_token: str | None = None
     chat_id: str | None = None
-    filter_owner: Literal["all", "misha", "max"] | None = None
+    filter_owner: str | None = None
     notify_low_balance: bool | None = None
     notify_api_error: bool | None = None
     notify_cdn_down: bool | None = None
     notify_settlement: bool | None = None
 
-
 class TelegramBotResponse(BaseModel):
     id: str
     name: str
-    bot_token: str  # Masked when returned in list
+    bot_token: str
     chat_id: str
     filter_owner: str
     notify_low_balance: bool
@@ -179,11 +207,10 @@ class TelegramBotResponse(BaseModel):
     created_at: str
     updated_at: str
 
-
 class SettlementResponse(BaseModel):
     id: str
     settled_at: str
     misha_owes_max: float
     max_owes_misha: float
     net_balance: float
-    note: str | None
+    note: str | None = None

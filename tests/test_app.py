@@ -23,7 +23,9 @@ def clean_db():
         conn.execute("DELETE FROM settlements")
         conn.execute("DELETE FROM telegram_bots")
         conn.execute("DELETE FROM notification_cooldowns")
+        conn.execute("DELETE FROM participants")
         conn.commit()
+    db.seed_default_participants()
     yield
 
 
@@ -531,3 +533,106 @@ def test_pin_protection(monkeypatch):
     auth_check_ok = client.get("/api/auth/check", headers={"X-Access-Pin": test_pin})
     assert auth_check_ok.status_code == 200
     assert auth_check_ok.json() == {"auth_required": True, "authenticated": True}
+
+
+def test_custom_participants_and_multi_split():
+    """Verify configurable participants, multi-split across 3+ people, and greedy debt simplification."""
+    client = TestClient(main.app)
+
+    # 1. Default pre-seeded participants
+    p_resp = client.get("/api/participants")
+    assert p_resp.status_code == 200
+    parts = p_resp.json()
+    assert len(parts) == 2
+    assert {p["id"] for p in parts} == {"misha", "max"}
+
+    # 2. Add a 3rd participant ("alex")
+    add_resp = client.post(
+        "/api/participants",
+        json={"id": "alex", "name": "Саша", "color": "#10b981"},
+    )
+    assert add_resp.status_code == 201
+    alex = add_resp.json()
+    assert alex["id"] == "alex"
+    assert alex["name"] == "Саша"
+
+    # Verify 3 participants now exist
+    parts3 = client.get("/api/participants").json()
+    assert len(parts3) == 3
+
+    # 3. Create account where payer is "misha"
+    acc_resp = client.post(
+        "/api/accounts",
+        json={
+            "provider": "selectel",
+            "name": "Team Selectel",
+            "payer": "misha",
+            "price_per_gb": 2.0,
+            "free_tier_gb": 0.0,
+        },
+    )
+    assert acc_resp.status_code == 201
+    acc_id = acc_resp.json()["id"]
+
+    # 4. Create resource with consumer="split" (1/3 for each participant)
+    # Total traffic = 150 GB * 2.0 ₽/GB = 300.0 ₽
+    # Misha consumed = 100 ₽, Max consumed = 100 ₽, Alex consumed = 100 ₽
+    # Misha paid = 300 ₽, Max paid = 0 ₽, Alex paid = 0 ₽
+    # Misha net = +200 ₽ (owed 200 ₽)
+    # Max net = -100 ₽ (owes 100 ₽)
+    # Alex net = -100 ₽ (owes 100 ₽)
+    res_resp = client.post(
+        "/api/resources",
+        json={
+            "account_id": acc_id,
+            "domain": "shared.cluster.cc",
+            "consumer": "split",
+            "total_gb": 150.0,
+        },
+    )
+    assert res_resp.status_code == 201
+
+    # 5. Check dashboard splitwise overview and transfers
+    dash_resp = client.get("/api/dashboard")
+    assert dash_resp.status_code == 200
+    dash = dash_resp.json()
+    split = dash["splitwise"]
+
+    assert len(dash["participants"]) == 3
+    assert len(split["participant_stats"]) == 3
+
+    stats_by_id = {s["id"]: s for s in split["participant_stats"]}
+    assert stats_by_id["misha"]["paid_total"] == 300.0
+    assert stats_by_id["misha"]["consumed_total"] == 100.0
+    assert stats_by_id["misha"]["net_balance"] == 200.0
+
+    assert stats_by_id["max"]["paid_total"] == 0.0
+    assert stats_by_id["max"]["consumed_total"] == 100.0
+    assert stats_by_id["max"]["net_balance"] == -100.0
+
+    assert stats_by_id["alex"]["paid_total"] == 0.0
+    assert stats_by_id["alex"]["consumed_total"] == 100.0
+    assert stats_by_id["alex"]["net_balance"] == -100.0
+
+    # Transfers: Max owes Misha 100 ₽, Alex owes Misha 100 ₽
+    assert len(split["transfers"]) == 2
+    transfers = split["transfers"]
+    debtor_ids = {t["from_id"] for t in transfers}
+    creditor_ids = {t["to_id"] for t in transfers}
+    amounts = [t["amount"] for t in transfers]
+    assert debtor_ids == {"max", "alex"}
+    assert creditor_ids == {"misha"}
+    assert amounts == [100.0, 100.0]
+
+    # 6. Rename participant Alex -> "Александр"
+    put_resp = client.put("/api/participants/alex", json={"name": "Александр"})
+    assert put_resp.status_code == 200
+    assert put_resp.json()["name"] == "Александр"
+
+    # 7. Delete participant Alex
+    del_resp = client.delete("/api/participants/alex")
+    assert del_resp.status_code == 200
+
+    parts_after_del = client.get("/api/participants").json()
+    assert len(parts_after_del) == 2
+    assert "alex" not in {p["id"] for p in parts_after_del}

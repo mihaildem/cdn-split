@@ -1,0 +1,196 @@
+{
+  "participants": [
+    {
+      "id": "misha",
+      "name": "Миша",
+      "color": "#38bdf8",
+      "is_default": true
+    },
+    {
+      "id": "max",
+      "name": "Макс",
+      "color": "#c084fc",
+      "is_default": true
+    }
+  ],
+  "accounts": [
+    {
+      "id": "acc_selectel_main",
+      "provider": "selectel",
+      "name": "Selectel (Основной)",
+      "payer": "misha",
+      "credentials": {
+        "api_token": "demo_sel_key_77a942"
+      },
+      "balance_rub": 1450.0,
+      "bonus_balance_rub": 300.0,
+      "currency": "RUB",
+      "account_identifier": "selectel-28491",
+      "free_tier_gb": 100.0,
+      "price_per_gb": 1.50,
+      "package_cost_rub": 0.0,
+      "ignore_bonus": false,
+      "low_balance_threshold": 200.0,
+      "sync_status": "ok"
+    },
+    {
+      "id": "acc_vk_max",
+      "provider": "vk",
+      "name": "VK Cloud (Проект Макса)",
+      "payer": "max",
+      "credentials": {
+        "api_token": "demo_vk_key_99bb12",
+        "project_id": "mcs_proj_8410"
+      },
+      "balance_rub": 620.0,
+      "bonus_balance_rub": 0.0,
+      "currency": "RUB",
+      "account_identifier": "mcs_proj_8410",
+      "free_tier_gb": 0.0,
+      "price_per_gb": 1.40,
+      "package_cost_rub": 0.0,
+      "ignore_bonus": false,
+      "low_balance_threshold": 200.0,
+      "sync_status": "ok"
+    },
+    {
+      "id": "acc_yc_misha",
+      "provider": "yandex",
+      "name": "Yandex Cloud (Edge CDN)",
+      "payer": "misha",
+      "credentials": {
+        "oauth_token": "demo_y0_AgAAA...",
+        "folder_id": "b1g9941a0e1"
+      },
+      "balance_rub": 2100.0,
+      "bonus_balance_rub": 500.0,
+      "currency": "RUB",
+      "account_identifier": "b1g9941a0e1",
+      "free_tier_gb": 0.0,
+      "price_per_gb": 1.20,
+      "package_cost_rub": 0.0,
+      "ignore_bonus": false,
+      "low_balance_threshold": 300.0,
+      "sync_status": "ok"
+    },
+    {
+      "id": "acc_tw_max",
+      "provider": "timeweb",
+      "name": "Timeweb (Микросервисы)",
+      "payer": "max",
+      "credentials": {
+        "api_token": "demo_tw_token_1823"
+      },
+      "balance_rub": 180.0,
+      "bonus_balance_rub": 0.0,
+      "currency": "RUB",
+      "account_identifier": "tw_client_942",
+      "free_tier_gb": 0.0,
+      "price_per_gb": 1.60,
+      "package_cost_rub": 0.0,
+      "ignore_bonus": false,
+      "low_balance_threshold": 200.0,
+      "sync_status": "ok"
+    }
+  ],
+  "resources": [
+    {
+      "id": "res_sel_1",
+      "account_id": "acc_selectel_main",
+      "domain": "api-data3.mdworks.uk",
+      "cname": "sel-cdn-942.selectelcdn.ru",
+      "status": "active",
+      "consumer": "split",
+      "total_gb": 42.5,
+      "http_status": "up",
+      "http_code": 200,
+      "http_latency_ms": 28.4
+    },
+    {
+      "id": "res_sel_2",
+      "account_id": "acc_selectel_main",
+      "domain": "media-assets.sreda.cc",
+      "cname": "sel-cdn-811.selectelcdn.ru",
+      "status": "active",
+      "consumer": "max",
+      "total_gb": 65.0,
+      "http_status": "up",
+      "http_code": 200,
+      "http_latency_ms": 34.1
+    },
+    {
+      "id": "res_sel_3",
+      "account_id": "acc_selectel_main",
+      "domain": "cdn-static.mishadev.ru",
+      "cname": "sel-cdn-102.selectelcdn.ru",
+      "status": "active",
+      "consumer": "misha",
+      "total_gb": 18.2,
+      "http_status": "up",
+      "http_code": 200,
+      "http_latency_ms": 19.2
+    },
+    {
+      "id": "res_vk_1",
+      "account_id": "acc_vk_max",
+      "domain": "stream-cache.video-cdn.ru",
+      "cname": "vkcdn-live-42.mcs.mail.ru",
+      "status": "active",
+      "consumer": "split",
+      "total_gb": 80.0,
+      "http_status": "up",
+      "http_code": 200,
+      "http_latency_ms": 45.0
+    },
+    {
+      "id": "res_vk_2",
+      "account_id": "acc_vk_max",
+      "domain": "heavy-files.maxhub.io",
+      "cname": "vkcdn-storage-19.mcs.mail.ru",
+      "status": "active",
+      "consumer": "max",
+      "total_gb": 45.0,
+      "http_status": "up",
+      "http_code": 200,
+      "http_latency_ms": 52.3
+    },
+    {
+      "id": "res_yc_1",
+      "account_id": "acc_yc_misha",
+      "domain": "origin-edge.sreda-hub.net",
+      "cname": "yc-cdn-cache.yandexcloud.net",
+      "status": "active",
+      "consumer": "misha",
+      "total_gb": 120.0,
+      "http_status": "up",
+      "http_code": 200,
+      "http_latency_ms": 18.7
+    },
+    {
+      "id": "res_tw_1",
+      "account_id": "acc_tw_max",
+      "domain": "cdn-app.tw-cluster.pro",
+      "cname": "twcdn-proxy.timeweb.cloud",
+      "status": "active",
+      "consumer": "max",
+      "total_gb": 30.0,
+      "http_status": "up",
+      "http_code": 200,
+      "http_latency_ms": 31.0
+    }
+  ],
+  "settlement": null,
+  "telegram_bots": [
+    {
+      "id": "bot_demo_alerts",
+      "name": "CDN Alerts (Demo)",
+      "bot_token": "demo_123456789:ABCdefGhIJKlmNoPQRstuVWxyz",
+      "chat_id": "-100123456789",
+      "filter_owner": "all",
+      "notify_low_balance": true,
+      "notify_api_error": true,
+      "notify_cdn_down": true,
+      "notify_settlement": true
+    }
+  ]
+}
