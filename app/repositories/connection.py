@@ -77,6 +77,27 @@ CREATE TABLE IF NOT EXISTS participants (
     id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL DEFAULT '#38bdf8',
     is_default INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS account_payer_history (
+    id TEXT PRIMARY KEY, account_id TEXT NOT NULL, member_id TEXT NOT NULL,
+    effective_from TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS resource_consumer_history (
+    id TEXT PRIMARY KEY, resource_id TEXT NOT NULL, mode TEXT NOT NULL,
+    member_id TEXT, effective_from TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS traffic_daily (
+    id TEXT PRIMARY KEY, resource_id TEXT NOT NULL, date TEXT NOT NULL,
+    bytes INTEGER NOT NULL DEFAULT 0, gb REAL NOT NULL DEFAULT 0.0, fetched_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS transfers (
+    id TEXT PRIMARY KEY, from_member TEXT NOT NULL, to_member TEXT NOT NULL,
+    amount_kop INTEGER NOT NULL, amount_rub REAL NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+    note TEXT, created_by TEXT, confirmed_by TEXT, created_at TEXT NOT NULL, confirmed_at TEXT
+);
+CREATE TABLE IF NOT EXISTS audit_log (
+    id TEXT PRIMARY KEY, user_id TEXT, action TEXT NOT NULL, entity TEXT NOT NULL,
+    before_json TEXT, after_json TEXT, created_at TEXT NOT NULL
+);
 """
 
 

@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY index.html ./index.html
 COPY static/ ./static/
+COPY brand-assets/ ./brand-assets/
 
 RUN mkdir -p /data
 

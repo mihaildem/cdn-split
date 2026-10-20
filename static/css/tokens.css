@@ -1,0 +1,62 @@
+/* Design Tokens: 3 skins × 5 palettes × Light/Dark */
+@import "./fonts.css";
+
+/* Palettes */
+html[data-pal=mint],html[data-pal=mint][data-t=light]{--bg:#f1f4ef;--surface:#fafcf8;--ink:#243e2d;--ink2:#627467;--line:#d4ded2;--soft:#e8eee3;--accent:#c8edb2;--on:#284525}
+html[data-pal=mint][data-t=dark]{--bg:#151c17;--surface:#1d2820;--ink:#e1f4e5;--ink2:#a5bba9;--line:#3c5141;--soft:#2c3c30;--accent:#365b34;--on:#e7ffdf}
+
+html[data-pal=sky],html[data-pal=sky][data-t=light]{--bg:#fbfaf7;--surface:#fffefa;--ink:#242e3b;--ink2:#6c717c;--line:#e8e6df;--soft:#efeee8;--accent:#e2ecfc;--on:#274579}
+html[data-pal=sky][data-t=dark]{--bg:#191a1d;--surface:#222327;--ink:#ecf0f8;--ink2:#abb0bc;--line:#3b3d43;--soft:#303238;--accent:#2c4163;--on:#d9e7ff}
+
+html[data-pal=lilac],html[data-pal=lilac][data-t=light]{--bg:#f4f4f9;--surface:#ffffff;--ink:#302c43;--ink2:#767186;--line:#e8e5ef;--soft:#f1eef7;--accent:#e9dffb;--on:#503575}
+html[data-pal=lilac][data-t=dark]{--bg:#17171e;--surface:#22222c;--ink:#f0eafa;--ink2:#b4acc5;--line:#3a3547;--soft:#302b3c;--accent:#493660;--on:#f2e3ff}
+
+html[data-pal=peach],html[data-pal=peach][data-t=light]{--bg:#fbf6f1;--surface:#fffdfa;--ink:#3a2a22;--ink2:#7a675b;--line:#eadfd6;--soft:#f3ebe3;--accent:#ffdcc6;--on:#6e2f12}
+html[data-pal=peach][data-t=dark]{--bg:#1d1815;--surface:#272019;--ink:#f6ece6;--ink2:#bba99d;--line:#43362d;--soft:#332a23;--accent:#5c3a28;--on:#ffe6d6}
+
+html[data-pal=graphite],html[data-pal=graphite][data-t=light]{--bg:#f6f7f8;--surface:#ffffff;--ink:#16191d;--ink2:#666d75;--line:#e3e6e9;--soft:#eceef0;--accent:#1b1f24;--on:#f1f3f5}
+html[data-pal=graphite][data-t=dark]{--bg:#121416;--surface:#1a1d20;--ink:#eef0f2;--ink2:#9aa1a8;--line:#2b3035;--soft:#23272b;--accent:#e9ecef;--on:#14171a}
+
+/* Semantic & status tokens */
+html{
+  --ok:#267247;--ok-bg:#e3f3e8;
+  --warn:#955714;--warn-bg:#fff3df;
+  --bad:#b3392f;--bad-bg:#fdeae7;
+  --ov:rgba(23,34,30,.38);
+  --lime:var(--accent);
+  --pri:var(--ink);--pri-fg:var(--surface);
+  --ink3:color-mix(in srgb,var(--ink2) 82%,var(--surface));
+}
+
+html[data-t=dark]{
+  --ink3:color-mix(in srgb,var(--ink2) 78%,var(--bg));
+  --ok:#9bd9b0;--ok-bg:#1f3626;
+  --warn:#ffd399;--warn-bg:#433421;
+  --bad:#ffaba0;--bad-bg:#4a2723;
+  --ov:rgba(0,0,0,.55);
+}
+
+/* Skin geometry and font tokens */
+html[data-skin=pixel]{
+  --R:0px;--Rc:0px;--Rb:0px;--Rp:0px;--Rav:0px;
+  --font:'IBM Plex Mono',ui-monospace,monospace;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --bigf:'Press Start 2P',monospace;
+}
+
+html[data-skin=air]{
+  --R:19px;--Rc:10px;--Rb:22px;--Rp:99px;--Rav:50%;
+  --font:'Manrope',system-ui,sans-serif;
+  --mono:'Manrope',system-ui,sans-serif;
+  --bigf:'Manrope',sans-serif;
+}
+
+html[data-skin=orbit]{
+  --R:14px;--Rc:9px;--Rb:10px;--Rp:99px;--Rav:50%;
+  --font:'Manrope',system-ui,sans-serif;
+  --mono:'Manrope',system-ui,sans-serif;
+  --bigf:'Manrope',sans-serif;
+}
+
+html[data-t=light]{color-scheme:light}
+html[data-t=dark]{color-scheme:dark}

@@ -13,7 +13,16 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import db, notifier, providers
-from app.api import accounts_router, dashboard_router, participants_router, settlements_router, telegram_router
+from app.api import (
+    account_ops_router,
+    accounts_router,
+    dashboard_router,
+    overview_router,
+    participants_router,
+    settlements_router,
+    telegram_router,
+    transfers_router,
+)
 
 SYNC_INTERVAL = int(os.environ.get("SYNC_INTERVAL_SECONDS", 300))
 PING_INTERVAL = int(os.environ.get("PING_INTERVAL_SECONDS", 180))
@@ -83,11 +92,28 @@ async def pin_access_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-# Static and Root Index Handling
+# Static, Brand Assets, and Root Index Handling
 ROOT_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = ROOT_DIR / "static" if (ROOT_DIR / "static").is_dir() else Path(__file__).resolve().parent / "static"
 if STATIC_DIR.is_dir():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+BRAND_ASSETS_DIR = ROOT_DIR / "brand-assets"
+if BRAND_ASSETS_DIR.is_dir():
+    app.mount("/brand-assets", StaticFiles(directory=str(BRAND_ASSETS_DIR)), name="brand-assets")
+
+
+@app.get("/manifest.webmanifest")
+async def serve_manifest():
+    candidates = [
+        ROOT_DIR / "manifest.webmanifest",
+        BRAND_ASSETS_DIR / "manifest.webmanifest",
+        STATIC_DIR / "manifest.webmanifest",
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return FileResponse(str(candidate), media_type="application/manifest+json")
+    return JSONResponse(status_code=404, content={"detail": "manifest.webmanifest not found"})
 
 
 @app.get("/health")
@@ -103,5 +129,14 @@ async def serve_index():
     return {"message": "CDN Splitwise API is running. UI not found."}
 
 
-for r in (dashboard_router, participants_router, accounts_router, settlements_router, telegram_router):
+for r in (
+    dashboard_router,
+    participants_router,
+    accounts_router,
+    settlements_router,
+    telegram_router,
+    overview_router,
+    transfers_router,
+    account_ops_router,
+):
     app.include_router(r)
