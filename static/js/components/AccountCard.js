@@ -39,10 +39,10 @@ export const AccountCard = {
 
         <div class="acc-tools">
           <button class="btn btn-sm" @click="store.openModal('resource', { account_id: account.id })" title="Добавить CDN ресурс">
-            <span>+</span><span>Ресурс</span>
+            <span>+ Ресурс</span>
           </button>
-          <button class="btn btn-sm btn-icon" @click="store.openModal('account', account)" title="Редактировать">✏️</button>
-          <button class="btn btn-sm btn-icon btn-danger" @click="store.deleteAccount(account.id)" title="Удалить">🗑️</button>
+          <button class="btn btn-sm btn-icon" @click="store.openModal('account', account)" title="Настройки аккаунта и API">⚙</button>
+          <button class="btn btn-sm btn-icon btn-danger" @click="store.deleteAccount(account.id)" title="Удалить аккаунт">✕</button>
         </div>
       </div>
 
@@ -119,8 +119,7 @@ export const AccountCard = {
               @click="store.pingResource(res)"
               :title="'HTTP ' + (res.http_code || '---') + ' (' + (res.http_latency_ms ? res.http_latency_ms.toFixed(0) + 'ms' : '---') + ') - нажмите для пинга'"
             >
-              {{ res.http_status === 'up' ? '🟢' : (res.http_status === 'down' ? '🔴' : '⚪') }}
-              {{ res.http_latency_ms ? res.http_latency_ms.toFixed(0) + 'ms' : (res.http_status ? res.http_status.toUpperCase() : 'PING') }}
+              ● {{ res.http_latency_ms ? res.http_latency_ms.toFixed(0) + 'ms' : (res.http_status ? res.http_status.toUpperCase() : 'PING') }}
             </span>
             <div>
               <div class="domain-title">{{ res.domain }}</div>
@@ -160,7 +159,7 @@ export const AccountCard = {
                 @click="store.openModal('resource', res)"
                 title="Редактировать ресурс"
               >
-                ✏️
+                ✎
               </button>
               <button
                 class="btn btn-sm btn-icon btn-danger"

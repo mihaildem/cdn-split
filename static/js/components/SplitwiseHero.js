@@ -25,7 +25,7 @@ export const SplitwiseHero = {
       <div class="bento-card hero-main">
         <div>
           <div class="hero-badge">
-            <span>{{ store.dashboard.splitwise.direction === 'settled' ? '✓ Баланс закрыт' : '⚖️ Взаиморасчет' }}</span>
+            <span>{{ store.dashboard.splitwise.direction === 'settled' ? '✓ Баланс закрыт' : 'Взаиморасчет с учетом взаимовычета' }}</span>
           </div>
           <h1 class="hero-summary">
             {{ store.dashboard.splitwise.summary_text }}

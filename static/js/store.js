@@ -5,7 +5,7 @@ import { reactive, computed } from "vue";
 import { api } from "./services/api.js";
 import { storage } from "./services/storage.js";
 import { PROVIDERS_CATALOG } from "./services/seed.js";
-import { calculateSplitwiseOverview } from "./billing.js";
+import { calculateSplitwiseOverview } from "./services/billing.js";
 
 export const store = reactive({
   connectionMode: "server", backendUrl: api.config.backendUrl, accessPin: api.config.accessPin,

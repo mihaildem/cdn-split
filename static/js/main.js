@@ -31,10 +31,10 @@ const App = {
           Все ({{ store.dashboard.accounts.length }})
         </button>
         <button class="filter-pill" :class="{ active: store.activeFilter === 'low_balance' }" @click="store.activeFilter = 'low_balance'">
-          ⚠️ Низкий баланс
+          Низкий баланс
         </button>
         <button class="filter-pill" :class="{ active: store.activeFilter === 'issues' }" @click="store.activeFilter = 'issues'">
-          🔴 Сбои / Ошибки
+          Проблемные
         </button>
         <button
           v-for="p in store.dashboard.participants"
@@ -43,7 +43,7 @@ const App = {
           :class="{ active: store.activeFilter === p.id }"
           @click="store.activeFilter = p.id"
         >
-          👤 {{ p.name }}
+          {{ p.name }}
         </button>
       </nav>
 
