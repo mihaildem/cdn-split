@@ -1,0 +1,29 @@
+name: cdn-split
+
+services:
+  cdn-split:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cdn-split:latest
+    container_name: cdn-split
+    restart: unless-stopped
+    ports:
+      - "${CDN_SPLIT_BIND_IP:-0.0.0.0}:${CDN_SPLIT_PORT:-8095}:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      - DATA_DIR=/data
+      - SYNC_INTERVAL_SECONDS=${SYNC_INTERVAL_SECONDS:-300}
+      - PING_INTERVAL_SECONDS=${PING_INTERVAL_SECONDS:-180}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
