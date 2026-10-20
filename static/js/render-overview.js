@@ -209,7 +209,9 @@ export function accHTML(a, h, compact, state) {
   const p = provMap[a.prov] || { n: a.name || 'CDN Provider', s: 'CDN', c: '#493660' };
   const c = h.c;
   const err = a.status === 'error';
-  const open = state.open[a.id] !== undefined ? state.open[a.id] : h.sev > 0;
+  const open = (state.openAcc && state.openAcc[a.id] !== undefined)
+    ? state.openAcc[a.id]
+    : (state.open && state.open[a.id] !== undefined ? state.open[a.id] : h.sev > 0);
   const isManual = a.source === 'manual';
 
   const chips = [];
@@ -226,39 +228,50 @@ export function accHTML(a, h, compact, state) {
 
   const freeP = a.freeGb ? Math.min(100, (c.freeUsed / a.freeGb) * 100) : 0;
 
-  return `<div class="acc ${open ? 'open' : ''} ${compact ? 'compact' : ''}" id="acc-${a.id}">
-   <div class="acc-head" data-a="toggle" data-v="${a.id}">
+  return `<div class="acc ${open ? 'open is-open' : ''} ${compact ? 'compact' : ''}" id="acc-${a.id}">
+   <div class="acc-head" data-a="toggle" data-act="toggle-acc" data-v="${a.id}">
      <div class="plogo" style="background:${p.c}">${p.s}</div>
      <div class="acc-main"><div class="acc-title">${esc(p.n)}</div><div class="acc-sub">${esc(a.login || '')} · ${esc(a.name || '')}</div>
        <div class="chips">${av(a.payer, state)}<span class="small muted">платит ${nm(a.payer, state)}</span>${chips.join('')}<span class="fresh ${a.updated > 60 ? 'old' : ''}">${a.updated > 60 ? 'данные от ' : ''}${ago(a.updated || 0)}</span></div></div>
-     <div class="acc-bal ${err ? 'stale' : ''}"><b>${rub(a.balance)}</b><span class="xs faint">${err ? 'посл. известный' : a.bonus ? '+ ' + rub(a.bonus) + ' бонус' : 'баланс'}</span></div>${ICONS.chev}
+     <div class="acc-bal ${err ? 'stale' : ''}"><b>${rub(a.balance)}</b><span class="xs faint">${err ? 'посл. известный' : a.bonus ? '+ ' + rub(a.bonus) + ' бонус' : 'баланс'}</span></div><span class="chev acc-chev">${ICONS.chev}</span>
    </div>
    <div class="acc-body">
-    ${err ? `<div class="alert"><span>API-ключ не принят — ${ago(a.updated || 0)} данные не обновлялись</span><button class="btn sm bad" style="background:var(--surface)" data-a="editAcc" data-v="${a.id}">Обновить</button></div>` : ''}
-    <div class="meta">
-      <div><div class="field-l">Кто платит за кабинет</div>${seg(state.members.map((m) => [m.id, esc(m.name)]), a.payer, 'payer', `data-acc="${a.id}"`)}</div>
-      <div class="free"><div class="field-l">Бесплатный трафик по тарифу</div>${a.freeGb ? `<div class="small"><b class="num">${gb(c.freeUsed)}</b> <span class="muted">из ${gb(a.freeGb)}</span></div><div class="bar"><i style="width:${freeP}%"></i></div>` : '<div class="small muted">Нет бесплатного лимита</div>'}</div>
-      <div class="full small muted">Пополнено за период: <b class="num" style="color:var(--ink)">${rub(a.topup || 0)}</b> <span class="faint">· справка, в долг не входит — считаем по потреблению</span></div>
-    </div>
-    ${(a.res || [])
-      .map((r, i) => {
-        const x = spikeX(r);
-        const sp = x >= 2.5;
-        return `<div class="res">
-      <div class="res-top"><div><div class="dom"><span class="dot ${r.up ? '' : 'bad'}"></span>${esc(r.domain)}${r.isNew && r.consumer === null ? ' <span class="tag">новый</span>' : ''}</div><div class="tech">${esc(r.tech)}${r.up ? '' : ' · недоступен'}</div></div>
-        <button class="cost" data-a="formula" data-v="${r.id}" title="Как посчитано"><b>${rub(c.costs[i])}</b><span>${gb(r.gb)} · как?</span></button></div>
-      <div class="res-mid">${spark(r.h, sp)}<span class="fc">14 дн.</span>${sp ? `<span class="pill bad">×${x.toFixed(1)} за сутки</span>` : ''}<span class="fc">→ ~${rub(c.costs[i] * F)} к концу мес.</span></div>
-      ${state.f[r.id] ? formulaHTML(a, c, r, i) : ''}
-      <div class="res-bot"><span class="xs faint">Чей CDN</span>${seg([...state.members.map((m) => [m.id, esc(m.name)]), ['all', 'Поровну']], r.consumer, 'cons', `data-acc="${a.id}" data-res="${r.id}"`, r.consumer === null ? 'need' : '')}</div>
-    </div>`;
-      })
-      .join('')}
-    <div class="acc-foot">
-      <span class="small muted">Итого за период: <b class="num" style="color:var(--ink)">${rub(c.sum)}</b> <span class="faint">· прогноз ${rub(c.sum * F)}</span></span>
-      <div class="row" style="gap:6px">
-        ${isManual ? `<button class="btn sm ghost" data-a="manualUsage" data-v="${a.id}">Ввести вручную</button>` : ''}
-        <button class="btn sm ghost" data-a="editAcc" data-v="${a.id}">${ICONS.edit}Настроить</button>
-      </div>
+    <div class="acc-body-in">
+     ${err ? `<div class="alert"><span>API-ключ не принят — ${ago(a.updated || 0)} данные не обновлялись</span><button class="btn sm bad" style="background:var(--surface)" data-a="editAcc" data-v="${a.id}">Обновить</button></div>` : ''}
+     <div class="meta">
+       <div><div class="field-l">Кто платит за кабинет</div>${seg(state.members.map((m) => [m.id, esc(m.name)]), a.payer, 'payer', `data-acc="${a.id}"`)}</div>
+       <div class="free"><div class="field-l">Бесплатный трафик по тарифу</div>${a.freeGb ? `<div class="small"><b class="num">${gb(c.freeUsed)}</b> <span class="muted">из ${gb(a.freeGb)}</span></div><div class="bar"><i style="width:${freeP}%"></i></div>` : '<div class="small muted">Нет бесплатного лимита</div>'}</div>
+       <div class="full small muted">Пополнено за период: <b class="num" style="color:var(--ink)">${rub(a.topup || 0)}</b> <span class="faint">· справка, в долг не входит — считаем по потреблению</span></div>
+     </div>
+     ${(a.res || [])
+       .map((r, i) => {
+         const x = spikeX(r);
+         const sp = x >= 2.5;
+         const openHow = Boolean(
+           (state.openHow && state.openHow[r.id] !== undefined)
+             ? state.openHow[r.id]
+             : (state.f && state.f[r.id])
+         );
+         return `<div class="res" id="res-${r.id}">
+       <div class="res-top"><div><div class="dom"><span class="dot ${r.up ? '' : 'bad'}"></span>${esc(r.domain)}${r.isNew && r.consumer === null ? ' <span class="tag">новый</span>' : ''}</div><div class="tech">${esc(r.tech)}${r.up ? '' : ' · недоступен'}</div></div>
+         <button class="cost how-btn ${openHow ? 'open is-open' : ''}" data-a="formula" data-act="toggle-how" data-v="${r.id}" title="Как посчитано"><b>${rub(c.costs[i])}</b><span class="how-label"><span class="how-text">${gb(r.gb)} · как?</span><span class="chev how-chev">${ICONS.chev}</span></span></button></div>
+       <div class="res-mid">${spark(r.h, sp)}<span class="fc">14 дн.</span>${sp ? `<span class="pill bad">×${x.toFixed(1)} за сутки</span>` : ''}<span class="fc">→ ~${rub(c.costs[i] * F)} к концу мес.</span></div>
+       <div class="how-box ${openHow ? 'open is-open' : ''}" id="how-${r.id}">
+         <div class="how-box-in">
+           ${formulaHTML(a, c, r, i)}
+         </div>
+       </div>
+       <div class="res-bot"><span class="xs faint">Чей CDN</span>${seg([...state.members.map((m) => [m.id, esc(m.name)]), ['all', 'Поровну']], r.consumer, 'cons', `data-acc="${a.id}" data-res="${r.id}"`, r.consumer === null ? 'need' : '')}</div>
+     </div>`;
+       })
+       .join('')}
+     <div class="acc-foot">
+       <span class="small muted">Итого за период: <b class="num" style="color:var(--ink)">${rub(c.sum)}</b> <span class="faint">· прогноз ${rub(c.sum * F)}</span></span>
+       <div class="row" style="gap:6px">
+         ${isManual ? `<button class="btn sm ghost" data-a="manualUsage" data-v="${a.id}">Ввести вручную</button>` : ''}
+         <button class="btn sm ghost" data-a="editAcc" data-v="${a.id}">${ICONS.edit}Настроить</button>
+       </div>
+     </div>
     </div>
    </div></div>`;
 }
@@ -269,7 +282,7 @@ export function renderHome(state) {
   const bad = hs.filter((x) => x.h.sev > 0);
   const ok = hs.filter((x) => x.h.sev === 0);
 
-  return `<div class="grid home">
+  return `<div class="grid home" id="view-main">
    <div><div class="sticky">${heroHTML(c, state)}</div></div>
    <div>${attHTML(c, state)}
      <div class="row between" style="margin-bottom:6px"><h2 style="margin:0">Аккаунты · ${state.accounts.length}</h2><button class="btn sm pri" data-a="addAcc">${ICONS.plus}Добавить</button></div>
@@ -286,7 +299,7 @@ export function updateSbar(state) {
   const cta = ctaState(c, state);
   const hero = document.getElementById('hero');
 
-  const show = state.tab === 'home' && cta && cta.label && hero && hero.getBoundingClientRect().bottom < 60;
+  const show = (state.tab === 'home' || state.tab === 'main') && cta && cta.label && hero && hero.getBoundingClientRect().bottom < 60;
   if (!cta || !cta.label) {
     el.className = 'sbar';
     return;

@@ -150,6 +150,14 @@ function setAssign(kind, a, r, v) {
   render();
 }
 
+export function goHome() {
+  S.tab = 'home';
+  closeSheet();
+  render();
+  window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+  triggerLogoAnim('spin');
+}
+
 function render() {
   const items = [
     ['home', 'Главная', ICONS.home],
@@ -161,7 +169,7 @@ function render() {
   if (topNav) {
     topNav.innerHTML = items
       .map(
-        (i) => `<button class="${S.tab === i[0] ? 'on' : ''}" data-a="tab" data-v="${i[0]}">${i[1]}</button>`
+        (i) => `<button class="${(S.tab === i[0] || (i[0] === 'home' && S.tab === 'main')) ? 'on' : ''}" data-a="tab" data-v="${i[0]}">${i[1]}</button>`
       )
       .join('');
   }
@@ -180,7 +188,7 @@ function render() {
   if (tabbar) {
     tabbar.innerHTML = items
       .map(
-        (i) => `<button class="${S.tab === i[0] ? 'on' : ''}" data-a="tab" data-v="${i[0]}">${i[2]}${i[1]}</button>`
+        (i) => `<button class="${(S.tab === i[0] || (i[0] === 'home' && S.tab === 'main')) ? 'on' : ''}" data-a="tab" data-v="${i[0]}">${i[2]}${i[1]}</button>`
       )
       .join('');
   }
@@ -207,7 +215,7 @@ function render() {
   const appEl = $('#app');
   if (appEl) {
     appEl.innerHTML =
-      S.tab === 'home'
+      (S.tab === 'home' || S.tab === 'main')
         ? renderHome(S)
         : S.tab === 'hist'
         ? renderHist(S)
@@ -229,18 +237,31 @@ function render() {
 
 // Global Event Delegation
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-a]');
+  const brandEl = e.target.closest('.brand, [data-act="go-home"]');
+  if (brandEl) {
+    goHome();
+    return;
+  }
+
+  const t = e.target.closest('[data-a], [data-act]');
   if (!t) return;
 
   const a = t.dataset.a;
-  const v = t.dataset.v;
+  const act = t.dataset.act;
+  const action = act || a;
+  const v = t.dataset.v || t.dataset.acc || t.dataset.id;
   const id = t.dataset.id || v;
 
-  switch (a) {
+  switch (action) {
     case 'tab':
-      S.tab = v;
+      S.tab = (v === 'main') ? 'home' : v;
       render();
       window.scrollTo(0, 0);
+      break;
+
+    case 'go-home':
+    case 'logo':
+      goHome();
       break;
 
     case 'me': {
@@ -250,12 +271,28 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'toggle': {
+    case 'toggle':
+    case 'toggle-acc': {
       const targetAcc = S.accounts.find((x) => String(x.id) === String(v));
       if (targetAcc) {
         const h = health(targetAcc);
-        S.open[v] = !(S.open[v] !== undefined ? S.open[v] : h.sev > 0);
-        render();
+        const currentOpen = (S.openAcc && S.openAcc[v] !== undefined)
+          ? S.openAcc[v]
+          : (S.open && S.open[v] !== undefined ? S.open[v] : h.sev > 0);
+        const nextOpen = !currentOpen;
+        if (!S.openAcc) S.openAcc = {};
+        if (!S.open) S.open = {};
+        S.openAcc[v] = nextOpen;
+        S.open[v] = nextOpen;
+        persistState(S);
+
+        const card = document.getElementById(`acc-${v}`) || t.closest('.acc');
+        if (card) {
+          card.classList.toggle('open', nextOpen);
+          card.classList.toggle('is-open', nextOpen);
+        } else {
+          render();
+        }
       }
       break;
     }
@@ -280,9 +317,33 @@ document.addEventListener('click', (e) => {
     }
 
     case 'formula':
-      S.f[v] = !S.f[v];
-      render();
+    case 'toggle-how': {
+      if (!S.openHow) S.openHow = {};
+      if (!S.f) S.f = {};
+      const currentHow = (S.openHow[v] !== undefined)
+        ? S.openHow[v]
+        : Boolean(S.f[v]);
+      const nextHow = !currentHow;
+      S.openHow[v] = nextHow;
+      S.f[v] = nextHow;
+      persistState(S);
+
+      const howBtn = t.classList.contains('how-btn') ? t : t.closest('.how-btn');
+      const howBox = document.getElementById(`how-${v}`) || (t.closest('.res') && t.closest('.res').querySelector('.how-box'));
+
+      if (howBtn) {
+        howBtn.classList.toggle('open', nextHow);
+        howBtn.classList.toggle('is-open', nextHow);
+      }
+      if (howBox) {
+        howBox.classList.toggle('open', nextHow);
+        howBox.classList.toggle('is-open', nextHow);
+      }
+      if (!howBtn && !howBox) {
+        render();
+      }
       break;
+    }
 
     case 'goattn': {
       const el = document.getElementById('attn');
@@ -291,10 +352,20 @@ document.addEventListener('click', (e) => {
     }
 
     case 'open': {
+      if (!S.openAcc) S.openAcc = {};
+      if (!S.open) S.open = {};
+      S.openAcc[id] = true;
       S.open[id] = true;
-      render();
+      persistState(S);
       const el = document.getElementById('acc-' + id);
-      if (el) el.scrollIntoView({ behavior: 'smooth' });
+      if (el) {
+        el.classList.add('open', 'is-open');
+        el.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        render();
+        const reEl = document.getElementById('acc-' + id);
+        if (reEl) reEl.scrollIntoView({ behavior: 'smooth' });
+      }
       break;
     }
 
@@ -436,7 +507,7 @@ document.addEventListener('click', (e) => {
       break;
 
     case 'logo':
-      triggerLogoAnim('spin');
+      goHome();
       break;
 
     case 'close':
@@ -746,6 +817,15 @@ window.addEventListener('resize', () => updateSbar(S));
 applySkin();
 applyTheme();
 render();
+
+// Click listeners for brand logo/title
+document.querySelectorAll('.brand, [data-act="go-home"]').forEach((el) => {
+  el.style.cursor = 'pointer';
+  el.addEventListener('click', (e) => {
+    e.preventDefault();
+    goHome();
+  });
+});
 
 // Remove splash screen after intro animation completes
 setTimeout(() => {

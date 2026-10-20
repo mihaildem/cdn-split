@@ -130,6 +130,7 @@ html[data-skin=air] .sw {
     padding-left: 176px;
   }
   html[data-skin=orbit] .top .logo,
+  html[data-skin=orbit] .top .brand,
   html[data-skin=orbit] .topnav {
     display: none;
   }

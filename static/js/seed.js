@@ -155,7 +155,7 @@ export const CHK_S = CHK.replace('<svg', '<svg width="14" height="14"');
 export const XX = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" shape-rendering="crispEdges" stroke-linecap="square" style="display:inline-block;vertical-align:-1px"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
 
 export const ICONS = {
-  chev: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>',
+  chev: '<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>',
   x: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>',
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>',
   hist: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
@@ -192,7 +192,9 @@ export function getInitialState() {
     settledAt: '12 апр',
     refreshes: 0,
     f: {},
+    openHow: {},
     open: {},
+    openAcc: {},
     testN: 0,
     members: [
       { id: 'm', name: 'Миша', sbp: '+7 900 123-45-67 · Т-Банк' },

@@ -38,6 +38,10 @@ export function loadPersistedState() {
     log: state.log || initial.log,
     baseline: state.baseline || initial.baseline,
     adj: state.adj || initial.adj,
+    open: state.open || initial.open || {},
+    openAcc: state.openAcc || state.open || initial.openAcc || {},
+    f: state.f || initial.f || {},
+    openHow: state.openHow || state.f || initial.openHow || {},
   };
 }
 
@@ -56,6 +60,10 @@ export function persistState(state) {
       log: state.log,
       baseline: state.baseline,
       adj: state.adj,
+      open: state.open,
+      openAcc: state.openAcc,
+      f: state.f,
+      openHow: state.openHow,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
     if (state.skin) localStorage.setItem('cs-skin', state.skin);
