@@ -544,6 +544,8 @@ document.addEventListener('click', (e) => {
 
     case 'close':
     case 'ovclose':
+      // Backdrop tap: only close when clicking the .ov itself, not inside .sheet
+      if (action === 'ovclose' && e.target !== t) return;
       closeSheet();
       break;
 

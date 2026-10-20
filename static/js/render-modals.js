@@ -27,7 +27,7 @@ export function sheet(title, body, foot, small = false) {
   const layer = document.getElementById('layer');
   if (!layer) return;
   layer.innerHTML = `<div class="ov" data-a="ovclose">
-    <div class="sheet ${small ? 'sm' : ''}" onclick="event.stopPropagation()">
+    <div class="sheet ${small ? 'sm' : ''}">
       <div class="sheet-h"><b>${title}</b><button class="iconbtn" data-a="close">${ICONS.x}</button></div>
       <div class="sheet-b" id="sbody">${body}</div>
       <div class="sheet-f">${foot}</div>
