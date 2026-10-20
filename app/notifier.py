@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 from typing import Any
 import httpx
 from app import db
+
+TELEGRAM_PROXY = os.environ.get("TELEGRAM_PROXY", "").strip() or None
 
 
 async def ping_single_resource(resource: dict[str, Any]) -> dict[str, Any]:
@@ -99,7 +102,7 @@ async def ping_all_resources() -> list[dict[str, Any]]:
 async def send_telegram_raw(
     bot_token: str, chat_id: str, html_message: str
 ) -> tuple[bool, str | None]:
-    """Direct POST to Telegram Bot API."""
+    """Direct POST to Telegram Bot API (with optional TELEGRAM_PROXY)."""
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {
         "chat_id": chat_id,
@@ -107,8 +110,12 @@ async def send_telegram_raw(
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
     }
+    client_kwargs: dict[str, Any] = {"timeout": 8.0}
+    if TELEGRAM_PROXY:
+        client_kwargs["proxy"] = TELEGRAM_PROXY
+
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with httpx.AsyncClient(**client_kwargs) as client:
             resp = await client.post(url, json=payload)
             if resp.status_code == 200:
                 return True, None

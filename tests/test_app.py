@@ -333,7 +333,7 @@ def test_telegram_bot_crud():
     list_resp = client.get("/api/telegram").json()
     assert len(list_resp) == 1
     assert list_resp[0]["id"] == bot_id
-    assert "..." in list_resp[0]["bot_token_masked"]
+    assert "••••••••" in list_resp[0]["bot_token_masked"]
 
     # Delete bot
     del_resp = client.delete(f"/api/telegram/{bot_id}")
@@ -350,3 +350,184 @@ def test_demo_reset_endpoint():
     assert data["success"] is True
     assert len(data["dashboard"]["accounts"]) >= 4
     assert data["dashboard"]["splitwise"]["total_resources_count"] >= 5
+
+
+# ================= Security & Encryption Hardening Tests =================
+
+def test_encryption_at_rest():
+    """Verify that sensitive credentials and tokens are encrypted at rest in SQLite."""
+    # 1. Create account with sensitive tokens
+    raw_secret = "super-secret-selectel-api-token-99999"
+    acc = db.create_account({
+        "provider": "selectel",
+        "name": "Encrypted Selectel Account",
+        "payer": "misha",
+        "credentials": {
+            "api_token": raw_secret,
+            "project_id": "proj_12345",
+        },
+    })
+    acc_id = acc["id"]
+
+    # 2. Create Telegram bot with token
+    raw_bot_token = "123456789:AABBCCDDEEFFGGHHIIJJKKLLMMNN"
+    bot = db.create_telegram_bot({
+        "name": "Encrypted Telegram Bot",
+        "bot_token": raw_bot_token,
+        "chat_id": "-100123456789",
+    })
+    bot_id = bot["id"]
+
+    # 3. Direct raw SQLite inspection
+    with db.get_connection() as conn:
+        cursor = conn.cursor()
+
+        # Check account credentials_json
+        cursor.execute("SELECT credentials_json FROM accounts WHERE id = ?", (acc_id,))
+        raw_creds_json = cursor.fetchone()[0]
+        assert raw_creds_json.startswith("ENCv1:")
+        assert raw_secret not in raw_creds_json
+        assert "proj_12345" not in raw_creds_json
+
+        # Check bot token
+        cursor.execute("SELECT bot_token FROM telegram_bots WHERE id = ?", (bot_id,))
+        raw_db_bot_token = cursor.fetchone()[0]
+        assert raw_db_bot_token.startswith("ENCv1:")
+        assert raw_bot_token not in raw_db_bot_token
+
+    # 4. In-memory decryption via DB methods
+    decrypted_acc = db.get_account(acc_id)
+    assert decrypted_acc["credentials"]["api_token"] == raw_secret
+    assert decrypted_acc["credentials"]["project_id"] == "proj_12345"
+
+    decrypted_bot = db.get_telegram_bot(bot_id)
+    assert decrypted_bot["bot_token"] == raw_bot_token
+
+
+def test_write_only_token_masking():
+    """Verify write-only token masking in responses and credential preservation on PUT."""
+    client = TestClient(main.app)
+
+    # 1. Create account via API
+    secret_token = "my-secret-token-abcdef1234"
+    resp = client.post(
+        "/api/accounts",
+        json={
+            "provider": "timeweb",
+            "name": "Masking Test",
+            "payer": "misha",
+            "credentials": {
+                "api_token": secret_token,
+            },
+        },
+    )
+    assert resp.status_code == 201
+    created_acc = resp.json()
+    acc_id = created_acc["id"]
+
+    # Response must be masked
+    assert created_acc["credentials"]["api_token"] == "••••••••1234"
+    assert secret_token not in str(created_acc)
+
+    # 2. GET account list and single account - must be masked
+    get_resp = client.get(f"/api/accounts/{acc_id}")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["credentials"]["api_token"] == "••••••••1234"
+
+    # 3. PUT with masked value preserves existing real secret
+    put_resp = client.put(
+        f"/api/accounts/{acc_id}",
+        json={
+            "name": "Masking Test Renamed",
+            "credentials": {
+                "api_token": "••••••••1234",
+            },
+        },
+    )
+    assert put_resp.status_code == 200
+    assert put_resp.json()["name"] == "Masking Test Renamed"
+    assert put_resp.json()["credentials"]["api_token"] == "••••••••1234"
+
+    # Verify actual secret in DB is still the original secret
+    acc_in_db = db.get_account(acc_id)
+    assert acc_in_db["credentials"]["api_token"] == secret_token
+
+    # 4. PUT with new secret updates to new secret
+    new_secret = "new-fresh-token-5678"
+    put_resp2 = client.put(
+        f"/api/accounts/{acc_id}",
+        json={
+            "credentials": {
+                "api_token": new_secret,
+            },
+        },
+    )
+    assert put_resp2.status_code == 200
+    assert put_resp2.json()["credentials"]["api_token"] == "••••••••5678"
+
+    acc_in_db2 = db.get_account(acc_id)
+    assert acc_in_db2["credentials"]["api_token"] == new_secret
+
+    # 5. Telegram Bot token masking and PUT preservation
+    bot_token = "123456789:SecretTelegramBotToken9999"
+    bot_resp = client.post(
+        "/api/telegram",
+        json={
+            "name": "Alerts Bot",
+            "bot_token": bot_token,
+            "chat_id": "-100123",
+        },
+    )
+    assert bot_resp.status_code == 201
+    bot_id = bot_resp.json()["id"]
+    assert bot_resp.json()["bot_token"] == "••••••••9999"
+    assert bot_resp.json()["bot_token_masked"] == "••••••••9999"
+
+    # PUT with masked token preserves real token
+    bot_update = client.put(
+        f"/api/telegram/{bot_id}",
+        json={
+            "name": "Alerts Bot Renamed",
+            "bot_token": "••••••••9999",
+        },
+    )
+    assert bot_update.status_code == 200
+    assert bot_update.json()["name"] == "Alerts Bot Renamed"
+    assert bot_update.json()["bot_token"] == "••••••••9999"
+
+    bot_in_db = db.get_telegram_bot(bot_id)
+    assert bot_in_db["bot_token"] == bot_token
+
+
+def test_pin_protection(monkeypatch):
+    """Verify APP_ACCESS_PIN enforcement on /api/* routes."""
+    test_pin = "7788"
+    monkeypatch.setenv("APP_ACCESS_PIN", test_pin)
+
+    client = TestClient(main.app)
+
+    # 1. Health check is always unauthenticated
+    health_resp = client.get("/health")
+    assert health_resp.status_code == 200
+
+    # 2. Accessing /api/dashboard without PIN returns 401
+    unauth_resp = client.get("/api/dashboard")
+    assert unauth_resp.status_code == 401
+    assert "PIN" in unauth_resp.json()["detail"]
+
+    # 3. Accessing /api/dashboard with incorrect PIN returns 401
+    wrong_resp = client.get("/api/dashboard", headers={"X-Access-Pin": "0000"})
+    assert wrong_resp.status_code == 401
+
+    # 4. Accessing /api/dashboard with valid PIN returns 200
+    auth_resp = client.get("/api/dashboard", headers={"X-Access-Pin": test_pin})
+    assert auth_resp.status_code == 200
+    assert "splitwise" in auth_resp.json()
+
+    # 5. /api/auth/check endpoint verifies PIN requirement and validity
+    auth_check_unauth = client.get("/api/auth/check")
+    assert auth_check_unauth.status_code == 401
+
+    auth_check_ok = client.get("/api/auth/check", headers={"X-Access-Pin": test_pin})
+    assert auth_check_ok.status_code == 200
+    assert auth_check_ok.json() == {"auth_required": True, "authenticated": True}

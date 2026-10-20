@@ -9,6 +9,8 @@ import time
 import uuid
 from typing import Any
 
+from app import crypto
+
 
 def get_db_path() -> str:
     data_dir = os.environ.get("DATA_DIR")
@@ -135,7 +137,7 @@ def get_accounts() -> list[dict[str, Any]]:
         result = []
         for r in rows:
             d = dict(r)
-            d["credentials"] = json.loads(d.pop("credentials_json", "{}") or "{}")
+            d["credentials"] = crypto.decrypt_credentials(d.pop("credentials_json", "{}") or "{}")
             d["ignore_bonus"] = bool(d["ignore_bonus"])
             result.append(d)
         return result
@@ -149,7 +151,7 @@ def get_account(account_id: str) -> dict[str, Any] | None:
         if not row:
             return None
         d = dict(row)
-        d["credentials"] = json.loads(d.pop("credentials_json", "{}") or "{}")
+        d["credentials"] = crypto.decrypt_credentials(d.pop("credentials_json", "{}") or "{}")
         d["ignore_bonus"] = bool(d["ignore_bonus"])
         return d
 
@@ -157,7 +159,7 @@ def get_account(account_id: str) -> dict[str, Any] | None:
 def create_account(data: dict[str, Any]) -> dict[str, Any]:
     acc_id = data.get("id") or f"acc_{uuid.uuid4().hex[:8]}"
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    creds_json = json.dumps(data.get("credentials", {}))
+    encrypted_creds = crypto.encrypt_credentials(data.get("credentials", {}))
 
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -175,7 +177,7 @@ def create_account(data: dict[str, Any]) -> dict[str, Any]:
                 data["provider"],
                 data["name"],
                 data.get("payer", "misha"),
-                creds_json,
+                encrypted_creds,
                 float(data.get("balance_rub", 0.0)),
                 float(data.get("bonus_balance_rub", 0.0)),
                 data.get("currency", "RUB"),
@@ -209,8 +211,11 @@ def update_account(account_id: str, updates: dict[str, Any]) -> dict[str, Any] |
         if v is None:
             continue
         if k == "credentials":
+            merged_creds = crypto.merge_incoming_credentials(
+                current.get("credentials", {}), v
+            )
             fields.append("credentials_json = ?")
-            values.append(json.dumps(v))
+            values.append(crypto.encrypt_credentials(merged_creds))
         elif k == "ignore_bonus":
             fields.append("ignore_bonus = ?")
             values.append(1 if v else 0)
@@ -421,6 +426,7 @@ def get_telegram_bots() -> list[dict[str, Any]]:
         result = []
         for r in rows:
             d = dict(r)
+            d["bot_token"] = crypto.decrypt_text(d["bot_token"])
             d["notify_low_balance"] = bool(d["notify_low_balance"])
             d["notify_api_error"] = bool(d["notify_api_error"])
             d["notify_cdn_down"] = bool(d["notify_cdn_down"])
@@ -437,6 +443,7 @@ def get_telegram_bot(bot_id: str) -> dict[str, Any] | None:
         if not row:
             return None
         d = dict(row)
+        d["bot_token"] = crypto.decrypt_text(d["bot_token"])
         d["notify_low_balance"] = bool(d["notify_low_balance"])
         d["notify_api_error"] = bool(d["notify_api_error"])
         d["notify_cdn_down"] = bool(d["notify_cdn_down"])
@@ -447,6 +454,7 @@ def get_telegram_bot(bot_id: str) -> dict[str, Any] | None:
 def create_telegram_bot(data: dict[str, Any]) -> dict[str, Any]:
     bot_id = data.get("id") or f"bot_{uuid.uuid4().hex[:8]}"
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    encrypted_token = crypto.encrypt_text(str(data["bot_token"]).strip())
 
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -461,7 +469,7 @@ def create_telegram_bot(data: dict[str, Any]) -> dict[str, Any]:
             (
                 bot_id,
                 data["name"],
-                data["bot_token"],
+                encrypted_token,
                 str(data["chat_id"]),
                 data.get("filter_owner", "all"),
                 1 if data.get("notify_low_balance", True) else 0,
@@ -491,7 +499,14 @@ def update_telegram_bot(bot_id: str, updates: dict[str, Any]) -> dict[str, Any] 
         if k in ("notify_low_balance", "notify_api_error", "notify_cdn_down", "notify_settlement"):
             fields.append(f"{k} = ?")
             values.append(1 if v else 0)
-        elif k in ("name", "bot_token", "chat_id", "filter_owner"):
+        elif k == "bot_token":
+            v_str = str(v).strip()
+            # If user submitted a masked token or empty, preserve existing
+            if v_str.startswith("••••") or not v_str:
+                continue
+            fields.append("bot_token = ?")
+            values.append(crypto.encrypt_text(v_str))
+        elif k in ("name", "chat_id", "filter_owner"):
             fields.append(f"{k} = ?")
             values.append(str(v))
 

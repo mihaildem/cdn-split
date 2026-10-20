@@ -16,6 +16,9 @@ services:
       - DATA_DIR=/data
       - SYNC_INTERVAL_SECONDS=${SYNC_INTERVAL_SECONDS:-300}
       - PING_INTERVAL_SECONDS=${PING_INTERVAL_SECONDS:-180}
+      - APP_SECRET_KEY=${APP_SECRET_KEY:-default-homelab-secret-change-me}
+      - APP_ACCESS_PIN=${APP_ACCESS_PIN:-}
+      - TELEGRAM_PROXY=${TELEGRAM_PROXY:-}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s

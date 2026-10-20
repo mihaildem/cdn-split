@@ -7,12 +7,12 @@ from contextlib import asynccontextmanager
 import os
 import time
 from typing import Any
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app import db, notifier, providers
+from app import crypto, db, notifier, providers
 from app.billing import calculate_account_billing, calculate_splitwise_overview
 from app.models import (
     AccountCreate,
@@ -120,6 +120,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def pin_access_middleware(request: Request, call_next):
+    """Enforce APP_ACCESS_PIN on /api/* routes if configured."""
+    access_pin = os.environ.get("APP_ACCESS_PIN", "").strip()
+    if access_pin:
+        path = request.url.path
+        if request.method != "OPTIONS" and path != "/health" and path.startswith("/api/"):
+            pin_header = request.headers.get("X-Access-Pin", "").strip()
+            if pin_header != access_pin:
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={"detail": "Неверный или отсутствующий PIN-код доступа (X-Access-Pin)"},
+                )
+    return await call_next(request)
+
+
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
@@ -130,6 +147,15 @@ if os.path.exists(static_dir):
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "timestamp": time.time()}
+
+
+@app.get("/api/auth/check")
+async def check_auth():
+    access_pin = os.environ.get("APP_ACCESS_PIN", "").strip()
+    return {
+        "auth_required": bool(access_pin),
+        "authenticated": True,
+    }
 
 
 @app.get("/")
@@ -193,13 +219,14 @@ async def get_dashboard():
 
 @app.get("/api/accounts")
 async def list_accounts():
-    return db.get_accounts()
+    accounts = db.get_accounts()
+    return [crypto.mask_account(acc) for acc in accounts]
 
 
 @app.post("/api/accounts", status_code=status.HTTP_201_CREATED)
 async def create_account_endpoint(payload: AccountCreate):
     acc = db.create_account(payload.model_dump())
-    return acc
+    return crypto.mask_account(acc)
 
 
 @app.get("/api/accounts/{account_id}")
@@ -207,7 +234,7 @@ async def get_account_endpoint(account_id: str):
     acc = db.get_account(account_id)
     if not acc:
         raise HTTPException(status_code=404, detail="Account not found")
-    return acc
+    return crypto.mask_account(acc)
 
 
 @app.put("/api/accounts/{account_id}")
@@ -215,7 +242,7 @@ async def update_account_endpoint(account_id: str, payload: AccountUpdate):
     acc = db.update_account(account_id, payload.model_dump(exclude_unset=True))
     if not acc:
         raise HTTPException(status_code=404, detail="Account not found")
-    return acc
+    return crypto.mask_account(acc)
 
 
 @app.delete("/api/accounts/{account_id}")
@@ -451,12 +478,12 @@ async def undo_settlement_endpoint():
 @app.get("/api/telegram")
 async def list_telegram_bots():
     bots = db.get_telegram_bots()
-    # Mask bot tokens
     safe_bots = []
     for b in bots:
-        tok = b["bot_token"]
-        masked_tok = tok[:6] + "..." + tok[-4:] if len(tok) > 12 else "••••••••"
+        tok = b.get("bot_token", "")
+        masked_tok = crypto.mask_secret_value(tok)
         b_copy = dict(b)
+        b_copy["bot_token"] = masked_tok
         b_copy["bot_token_masked"] = masked_tok
         safe_bots.append(b_copy)
     return safe_bots
@@ -465,7 +492,10 @@ async def list_telegram_bots():
 @app.post("/api/telegram", status_code=status.HTTP_201_CREATED)
 async def create_telegram_bot_endpoint(payload: TelegramBotCreate):
     bot = db.create_telegram_bot(payload.model_dump())
-    return bot
+    bot_copy = dict(bot)
+    bot_copy["bot_token"] = crypto.mask_secret_value(bot.get("bot_token", ""))
+    bot_copy["bot_token_masked"] = bot_copy["bot_token"]
+    return bot_copy
 
 
 @app.put("/api/telegram/{bot_id}")
@@ -473,7 +503,10 @@ async def update_telegram_bot_endpoint(bot_id: str, payload: TelegramBotUpdate):
     bot = db.update_telegram_bot(bot_id, payload.model_dump(exclude_unset=True))
     if not bot:
         raise HTTPException(status_code=404, detail="Telegram bot not found")
-    return bot
+    bot_copy = dict(bot)
+    bot_copy["bot_token"] = crypto.mask_secret_value(bot.get("bot_token", ""))
+    bot_copy["bot_token_masked"] = bot_copy["bot_token"]
+    return bot_copy
 
 
 @app.delete("/api/telegram/{bot_id}")

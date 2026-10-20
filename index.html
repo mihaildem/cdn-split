@@ -127,23 +127,29 @@
     .mode-badge {
       font-size: 11px;
       font-weight: 600;
-      padding: 2px 8px;
+      padding: 3px 10px;
       border-radius: 12px;
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
       cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+    }
+
+    .mode-badge:hover {
+      transform: translateY(-1px);
     }
 
     .mode-badge.serverless {
       background: rgba(168, 85, 247, 0.15);
-      border: 1px solid rgba(168, 85, 247, 0.35);
+      border-color: rgba(168, 85, 247, 0.35);
       color: #d8b4fe;
     }
 
     .mode-badge.backend {
       background: var(--green-bg);
-      border: 1px solid rgba(34, 197, 94, 0.35);
+      border-color: rgba(34, 197, 94, 0.35);
       color: var(--green);
     }
 
@@ -977,7 +983,9 @@
       <div class="brand-title">
         CDN Splitwise
         <span class="brand-badge num" id="header-stats">Загрузка...</span>
-        <span class="mode-badge serverless" id="mode-badge" title="Режим работы хранилища">● GitHub Pages</span>
+        <button class="mode-badge serverless" id="mode-badge" title="Настройки подключения и PIN-код" onclick="openSecurityModal()">
+          🔒 <span id="mode-badge-text">Проверка...</span>
+        </button>
       </div>
     </div>
     <div class="header-actions">
@@ -1304,7 +1312,7 @@
     </div>
     <div class="modal-body">
       <p style="font-size:12px; color:var(--text-muted);">
-        В режиме GitHub Pages данные сохраняются в памяти вашего браузера (<code>localStorage</code>). С помощью экспорта/импорта Миша и Макс могут легко синхронизировать конфигурацию между телефонами и компьютерами.
+        В автономном режиме конфигурация хранится в памяти браузера (<code>localStorage</code>). С помощью экспорта и импорта Миша и Макс могут легко переносить настройки между телефонами и компьютерами.
       </p>
 
       <div style="display:flex; gap:10px; margin-top:6px;">
@@ -1335,6 +1343,41 @@
     </div>
     <div class="modal-footer">
       <button type="button" onclick="closeModal('modal-sync')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- 6. Backend Connection & Security Modal -->
+<div class="modal-overlay" id="modal-security">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-title">🔒 Подключение и Безопасность</div>
+      <button class="icon-btn" onclick="closeModal('modal-security')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px; color:var(--text-muted);">
+        Подключите дашборд к домашнему серверу (например, <code>https://cdn.sreda.cc</code>) или переключитесь в автономный режим работы браузера.
+      </p>
+
+      <div id="security-alert-box" style="display:none; padding:8px 12px; border-radius:6px; background:var(--red-bg); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; font-size:12px;"></div>
+
+      <div class="form-group">
+        <label>URL сервера (FastAPI бэкенд)</label>
+        <input type="text" class="form-control" id="sec-backend-url" placeholder="Оставьте пустым для текущего хоста или https://cdn.sreda.cc">
+        <span style="font-size:11px; color:var(--text-dim);">Укажите адрес сервера при открытии с GitHub Pages</span>
+      </div>
+
+      <div class="form-group">
+        <label>PIN-код доступа (X-Access-Pin)</label>
+        <input type="password" class="form-control" id="sec-access-pin" placeholder="••••">
+        <span style="font-size:11px; color:var(--text-dim);">Если на сервере задан APP_ACCESS_PIN, введите его здесь</span>
+      </div>
+
+      <div id="sec-test-result" style="font-size:12px; display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" onclick="disconnectToLocalStorage()">Работать автономно (Демо)</button>
+      <button type="button" class="btn-primary" id="btn-save-security">Подключиться к серверу</button>
     </div>
   </div>
 </div>
@@ -1499,7 +1542,8 @@
           package_cost_rub: 0.0,
           ignore_bonus: false,
           low_balance_threshold: 200.0,
-          sync_status: "ok"
+          sync_status: "ok",
+          credentials: { api_token: "••••••••a942" }
         },
         {
           id: "acc_vk_max",
@@ -1515,7 +1559,8 @@
           package_cost_rub: 0.0,
           ignore_bonus: false,
           low_balance_threshold: 200.0,
-          sync_status: "ok"
+          sync_status: "ok",
+          credentials: { api_token: "••••••••bb12", project_id: "mcs_proj_8410" }
         },
         {
           id: "acc_yc_misha",
@@ -1531,14 +1576,15 @@
           package_cost_rub: 0.0,
           ignore_bonus: false,
           low_balance_threshold: 300.0,
-          sync_status: "ok"
+          sync_status: "ok",
+          credentials: { oauth_token: "••••••••AAAA", folder_id: "b1g9941a0e1" }
         },
         {
           id: "acc_tw_max",
           provider: "timeweb",
           name: "Timeweb (Микросервисы)",
           payer: "max",
-          balance_rub: 180.0, // Low balance alert!
+          balance_rub: 180.0,
           bonus_balance_rub: 0.0,
           currency: "RUB",
           account_identifier: "tw_client_942",
@@ -1547,7 +1593,8 @@
           package_cost_rub: 0.0,
           ignore_bonus: false,
           low_balance_threshold: 200.0,
-          sync_status: "ok"
+          sync_status: "ok",
+          credentials: { api_token: "••••••••1823" }
         }
       ],
       resources: [
@@ -1655,7 +1702,7 @@
     };
   }
 
-  // --- Client-Side Storage & Calculation Engine (LocalStorage) ---
+  // --- Local Storage Management ---
   const ClientStorage = {
     KEY: 'cdn_split_storage_v1',
     load() {
@@ -1687,13 +1734,11 @@
       this.save(demo);
       return demo;
     },
-    // Pure Calculation Engine Mirroring Python
     calculateDashboard() {
       const data = this.load();
       const accounts = data.accounts || [];
       const resources = data.resources || [];
 
-      // Group resources by account
       const resByAcc = {};
       resources.forEach(r => {
         if (!resByAcc[r.account_id]) resByAcc[r.account_id] = [];
@@ -1791,7 +1836,7 @@
         };
       });
 
-      // Splitwise Overview
+      // Splitwise Calculations
       let mishaOwesMax = 0;
       let maxOwesMisha = 0;
       let mishaPaidTotal = 0;
@@ -1869,18 +1914,53 @@
     }
   };
 
-  // --- Smart API Proxy (Detects backend or falls back seamlessly to LocalStorage) ---
-  let isServerlessMode = window.location.hostname.includes('github.io') || window.location.protocol === 'file:';
+  // --- Backend Connection & Security Helpers ---
+  function getBackendBaseUrl() {
+    return (localStorage.getItem('cdn_split_backend_url') || '').trim().replace(/\/+$/, '');
+  }
 
+  function getAccessPin() {
+    return (localStorage.getItem('cdn_split_access_pin') || '').trim();
+  }
+
+  function resolveUrl(url) {
+    const base = getBackendBaseUrl();
+    if (!base) return url;
+    return base + (url.startsWith('/') ? url : '/' + url);
+  }
+
+  function getRequestHeaders(custom = {}) {
+    const h = { 'Content-Type': 'application/json', ...custom };
+    const pin = getAccessPin();
+    if (pin) h['X-Access-Pin'] = pin;
+    return h;
+  }
+
+  let isServerlessMode = (!getBackendBaseUrl() && (window.location.hostname.includes('github.io') || window.location.protocol === 'file:'));
+
+  // --- Smart API Proxy (Backend with PIN support & LocalStorage Fallback) ---
   const API = {
     async get(url) {
       if (!isServerlessMode) {
         try {
-          const r = await fetch(url);
-          if (r.ok) return await r.json();
-          if (r.status === 404) isServerlessMode = true;
+          const fullUrl = resolveUrl(url);
+          const r = await fetch(fullUrl, { headers: getRequestHeaders() });
+          if (r.status === 401) {
+            openSecurityModal('⚠️ Ошибка 401: Требуется верный PIN-код доступа для подключения к серверу');
+            throw new Error('401 Unauthorized');
+          }
+          if (r.ok) {
+            updateModeBadge(true);
+            return await r.json();
+          }
+          if (r.status === 404 && !getBackendBaseUrl()) isServerlessMode = true;
         } catch (e) {
-          isServerlessMode = true;
+          if (e.message.includes('401')) throw e;
+          if (!getBackendBaseUrl()) isServerlessMode = true;
+          else {
+            showToast('Сбой сервера: ' + e.message);
+            throw e;
+          }
         }
       }
       return this.serverlessGet(url);
@@ -1888,15 +1968,28 @@
     async post(url, body = {}) {
       if (!isServerlessMode) {
         try {
-          const r = await fetch(url, {
+          const fullUrl = resolveUrl(url);
+          const r = await fetch(fullUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getRequestHeaders(),
             body: JSON.stringify(body)
           });
-          if (r.ok) return await r.json();
-          if (r.status === 404) isServerlessMode = true;
+          if (r.status === 401) {
+            openSecurityModal('⚠️ Ошибка 401: Требуется верный PIN-код доступа для подключения к серверу');
+            throw new Error('401 Unauthorized');
+          }
+          if (r.ok) {
+            updateModeBadge(true);
+            return await r.json();
+          }
+          if (r.status === 404 && !getBackendBaseUrl()) isServerlessMode = true;
         } catch (e) {
-          isServerlessMode = true;
+          if (e.message.includes('401')) throw e;
+          if (!getBackendBaseUrl()) isServerlessMode = true;
+          else {
+            showToast('Сбой сервера: ' + e.message);
+            throw e;
+          }
         }
       }
       return this.serverlessPost(url, body);
@@ -1904,15 +1997,28 @@
     async put(url, body = {}) {
       if (!isServerlessMode) {
         try {
-          const r = await fetch(url, {
+          const fullUrl = resolveUrl(url);
+          const r = await fetch(fullUrl, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getRequestHeaders(),
             body: JSON.stringify(body)
           });
-          if (r.ok) return await r.json();
-          if (r.status === 404) isServerlessMode = true;
+          if (r.status === 401) {
+            openSecurityModal('⚠️ Ошибка 401: Требуется верный PIN-код доступа для подключения к серверу');
+            throw new Error('401 Unauthorized');
+          }
+          if (r.ok) {
+            updateModeBadge(true);
+            return await r.json();
+          }
+          if (r.status === 404 && !getBackendBaseUrl()) isServerlessMode = true;
         } catch (e) {
-          isServerlessMode = true;
+          if (e.message.includes('401')) throw e;
+          if (!getBackendBaseUrl()) isServerlessMode = true;
+          else {
+            showToast('Сбой сервера: ' + e.message);
+            throw e;
+          }
         }
       }
       return this.serverlessPut(url, body);
@@ -1920,15 +2026,28 @@
     async patch(url, body = {}) {
       if (!isServerlessMode) {
         try {
-          const r = await fetch(url, {
+          const fullUrl = resolveUrl(url);
+          const r = await fetch(fullUrl, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getRequestHeaders(),
             body: JSON.stringify(body)
           });
-          if (r.ok) return await r.json();
-          if (r.status === 404) isServerlessMode = true;
+          if (r.status === 401) {
+            openSecurityModal('⚠️ Ошибка 401: Требуется верный PIN-код доступа для подключения к серверу');
+            throw new Error('401 Unauthorized');
+          }
+          if (r.ok) {
+            updateModeBadge(true);
+            return await r.json();
+          }
+          if (r.status === 404 && !getBackendBaseUrl()) isServerlessMode = true;
         } catch (e) {
-          isServerlessMode = true;
+          if (e.message.includes('401')) throw e;
+          if (!getBackendBaseUrl()) isServerlessMode = true;
+          else {
+            showToast('Сбой сервера: ' + e.message);
+            throw e;
+          }
         }
       }
       return this.serverlessPatch(url, body);
@@ -1936,11 +2055,24 @@
     async del(url) {
       if (!isServerlessMode) {
         try {
-          const r = await fetch(url, { method: 'DELETE' });
-          if (r.ok) return await r.json();
-          if (r.status === 404) isServerlessMode = true;
+          const fullUrl = resolveUrl(url);
+          const r = await fetch(fullUrl, { method: 'DELETE', headers: getRequestHeaders() });
+          if (r.status === 401) {
+            openSecurityModal('⚠️ Ошибка 401: Требуется верный PIN-код доступа для подключения к серверу');
+            throw new Error('401 Unauthorized');
+          }
+          if (r.ok) {
+            updateModeBadge(true);
+            return await r.json();
+          }
+          if (r.status === 404 && !getBackendBaseUrl()) isServerlessMode = true;
         } catch (e) {
-          isServerlessMode = true;
+          if (e.message.includes('401')) throw e;
+          if (!getBackendBaseUrl()) isServerlessMode = true;
+          else {
+            showToast('Сбой сервера: ' + e.message);
+            throw e;
+          }
         }
       }
       return this.serverlessDel(url);
@@ -1948,7 +2080,7 @@
 
     // Serverless Handlers
     serverlessGet(url) {
-      updateModeBadge();
+      updateModeBadge(false);
       if (url.startsWith('/api/dashboard')) {
         return ClientStorage.calculateDashboard();
       }
@@ -1972,7 +2104,7 @@
     },
 
     async serverlessPost(url, body) {
-      updateModeBadge();
+      updateModeBadge(false);
       const data = ClientStorage.load();
 
       if (url === '/api/demo/reset') {
@@ -2023,7 +2155,6 @@
       }
 
       if (url.endsWith('/sync') || url === '/api/sync/all') {
-        // Simulate health ping updates
         data.resources.forEach(r => {
           r.http_latency_ms = Math.round(15 + Math.random() * 40);
           r.http_status = 'up';
@@ -2055,7 +2186,6 @@
           };
         });
 
-        // Advance watermarks
         dash.accounts.forEach(acc => {
           acc.resources.forEach(rSumm => {
             const r = data.resources.find(x => x.id === rSumm.id);
@@ -2080,7 +2210,7 @@
         data.settlements.unshift(settlement);
         ClientStorage.save(data);
 
-        // Direct Telegram Broadcast from browser
+        // Telegram direct send if bots configured
         if (data.telegram_bots && data.telegram_bots.length > 0) {
           const text = `✅ <b>Взаимозачет CDN закрыт! («Оплатил»)</b>\n\n` +
             (split.net_balance > 0 ? `Макс передал Мише <b>${split.net_balance.toFixed(2)} ₽</b>` :
@@ -2158,12 +2288,20 @@
     },
 
     serverlessPut(url, body) {
-      updateModeBadge();
+      updateModeBadge(false);
       const data = ClientStorage.load();
       if (url.startsWith('/api/accounts/')) {
         const id = url.split('/')[3];
         const acc = data.accounts.find(a => a.id === id);
         if (acc) {
+          if (body.credentials) {
+            acc.credentials = { ...acc.credentials };
+            for (let [k, v] of Object.entries(body.credentials)) {
+              if (typeof v === 'string' && (v.startsWith('••••') || !v.trim())) continue;
+              acc.credentials[k] = v;
+            }
+            delete body.credentials;
+          }
           Object.assign(acc, body);
           ClientStorage.save(data);
           return acc;
@@ -2182,7 +2320,7 @@
     },
 
     serverlessPatch(url, body) {
-      updateModeBadge();
+      updateModeBadge(false);
       const data = ClientStorage.load();
       if (url.includes('/resources/') && url.endsWith('/consumer')) {
         const id = url.split('/')[3];
@@ -2197,7 +2335,7 @@
     },
 
     serverlessDel(url) {
-      updateModeBadge();
+      updateModeBadge(false);
       const data = ClientStorage.load();
       if (url.startsWith('/api/resources/')) {
         const id = url.split('/')[3];
@@ -2222,15 +2360,18 @@
     }
   };
 
-  function updateModeBadge() {
+  function updateModeBadge(isBackendActive) {
     const badge = document.getElementById('mode-badge');
-    if (!badge) return;
-    if (isServerlessMode) {
-      badge.className = 'mode-badge serverless';
-      badge.innerHTML = '● GitHub Pages · LocalStorage';
-    } else {
+    const text = document.getElementById('mode-badge-text');
+    if (!badge || !text) return;
+    if (isBackendActive) {
       badge.className = 'mode-badge backend';
-      badge.innerHTML = '● Backend API';
+      text.innerText = 'Защищенный сервер';
+      badge.title = 'Подключено к бэкенду. Нажмите для настроек';
+    } else {
+      badge.className = 'mode-badge serverless';
+      text.innerText = 'Демо (Браузер)';
+      badge.title = 'Автономный режим. Нажмите для подключения сервера';
     }
   }
 
@@ -2239,6 +2380,7 @@
     dashboard: null,
     providers: PROVIDERS_METADATA,
     currentFilter: 'all',
+    currentEditingAccount: null
   };
 
   function showToast(msg) {
@@ -2266,7 +2408,6 @@
   // Initial Load
   async function init() {
     try {
-      updateModeBadge();
       const [dash, provs] = await Promise.all([
         API.get('/api/dashboard'),
         API.get('/api/providers')
@@ -2278,12 +2419,14 @@
       loadTelegramCount();
     } catch (e) {
       console.warn('Initial load fallback:', e);
-      isServerlessMode = true;
-      updateModeBadge();
-      state.dashboard = ClientStorage.calculateDashboard();
-      renderApp();
-      setupEventListeners();
-      loadTelegramCount();
+      if (!e.message.includes('401')) {
+        isServerlessMode = true;
+        updateModeBadge(false);
+        state.dashboard = ClientStorage.calculateDashboard();
+        renderApp();
+        setupEventListeners();
+        loadTelegramCount();
+      }
     }
   }
 
@@ -2314,10 +2457,8 @@
     if (!state.dashboard) return;
     const { splitwise, accounts } = state.dashboard;
 
-    // Header Badge
     document.getElementById('header-stats').innerText = `${splitwise.total_resources_count} CDN · ${accounts.length} акк.`;
 
-    // Hero Widget
     const debtEl = document.getElementById('hero-debt-display');
     debtEl.className = 'hero-debt-amount num';
     if (splitwise.direction === 'max_owes_misha') {
@@ -2336,7 +2477,6 @@
     document.getElementById('max-paid-stat').innerText = formatMoney(splitwise.max_paid_total);
     document.getElementById('max-consumed-stat').innerText = formatMoney(splitwise.max_consumed_total);
 
-    // Counts for filter pills
     let cntAll = 0, cntMisha = 0, cntMax = 0, cntProblem = 0;
     accounts.forEach(acc => {
       cntAll += acc.resources.length;
@@ -2354,7 +2494,6 @@
     document.getElementById('count-max').innerText = cntMax;
     document.getElementById('count-problem').innerText = cntProblem;
 
-    // Render Accounts
     const container = document.getElementById('accounts-container');
     container.innerHTML = '';
 
@@ -2374,7 +2513,6 @@
       const card = document.createElement('div');
       card.className = `account-card ${acc.is_low_balance ? 'low-balance-alert' : ''}`;
 
-      // Free tier progress calculation
       let freeTierHtml = '';
       if (acc.free_tier_gb > 0) {
         const pct = Math.min(100, Math.round((acc.free_tier_used_gb / acc.free_tier_gb) * 100));
@@ -2391,7 +2529,6 @@
         freeTierHtml = `<span class="badge" style="background:rgba(255,255,255,0.06);">${acc.price_per_gb} ₽/ГБ</span>`;
       }
 
-      // Balance Badge
       const balanceHtml = `
         <span class="badge badge-balance ${acc.is_low_balance ? 'low-balance' : ''}" title="Баланс аккаунта">
           ${acc.is_low_balance ? '⚠️ ' : ''}${formatMoney(acc.balance_rub)}
@@ -2418,7 +2555,6 @@
             ${balanceHtml}
             ${freeTierHtml}
 
-            <!-- 1-Tap Payer Selector -->
             <div class="payer-toggle">
               <span class="payer-toggle-label">Платит:</span>
               <span class="payer-opt ${acc.payer === 'misha' ? 'active misha' : ''}" onclick="toggleAccountPayer('${acc.id}', 'misha')">Миша</span>
@@ -2442,7 +2578,6 @@
           </div>
         </div>
 
-        <!-- Resources Rows -->
         <div class="resources-list" id="res-list-${acc.id}"></div>
       `;
 
@@ -2456,7 +2591,6 @@
           const row = document.createElement('div');
           row.className = 'resource-row';
 
-          // Latency & dot
           let statusDotClass = 'unknown';
           let statusText = '...';
           if (res.http_status === 'up') {
@@ -2467,7 +2601,6 @@
             statusText = res.http_code ? `ERR ${res.http_code}` : 'DOWN';
           }
 
-          // Cost label
           const isFree = res.current_cumulative_cost === 0 && res.total_gb > 0;
           const costLabel = isFree ? '0 ₽ (Free Tier)' : formatMoney(res.current_cumulative_cost);
 
@@ -2488,7 +2621,6 @@
                 <div class="res-cost num ${isFree ? 'free-tier' : ''}">${costLabel}</div>
               </div>
 
-              <!-- 1-Tap Consumer Toggle -->
               <div class="consumer-segmented">
                 <button class="consumer-btn ${res.consumer === 'misha' ? 'active misha' : ''}" 
                   onclick="updateResourceConsumer('${res.id}', 'misha')">Миша</button>
@@ -2511,7 +2643,6 @@
     });
   }
 
-  // 1-Tap Consumer Instant Toggle
   async function updateResourceConsumer(resId, consumer) {
     try {
       const res = await API.patch(`/api/resources/${resId}/consumer`, { consumer });
@@ -2523,7 +2654,6 @@
     }
   }
 
-  // 1-Tap Payer Instant Toggle
   async function toggleAccountPayer(accId, payer) {
     try {
       await API.put(`/api/accounts/${accId}`, { payer });
@@ -2534,7 +2664,6 @@
     }
   }
 
-  // Settle Up ("Оплатил")
   async function settleUp() {
     if (!confirm('Зафиксировать текущие взаиморасчеты («Оплатил»)?\nСчетчики периода будут зафиксированы.')) return;
     try {
@@ -2547,7 +2676,6 @@
     }
   }
 
-  // Sync Actions
   async function syncAccount(accId) {
     showToast('Синхронизация аккаунта...');
     try {
@@ -2600,6 +2728,7 @@
 
   // Account Modal
   function openAddAccountModal() {
+    state.currentEditingAccount = null;
     document.getElementById('modal-account-title').innerText = 'Добавить аккаунт CDN';
     document.getElementById('acc-form-id').value = '';
     document.getElementById('acc-name').value = '';
@@ -2615,9 +2744,17 @@
     openModal('modal-account');
   }
 
-  function openEditAccountModal(accId) {
-    const acc = state.dashboard.accounts.find(a => a.id === accId);
+  async function openEditAccountModal(accId) {
+    let acc = state.dashboard.accounts.find(a => a.id === accId);
     if (!acc) return;
+
+    // If backend provides credentials endpoint, fetch full masked credentials
+    try {
+      const fullAcc = await API.get(`/api/accounts/${accId}`);
+      if (fullAcc && fullAcc.credentials) acc = { ...acc, credentials: fullAcc.credentials };
+    } catch(e) {}
+
+    state.currentEditingAccount = acc;
     document.getElementById('modal-account-title').innerText = 'Редактировать аккаунт CDN';
     document.getElementById('acc-form-id').value = acc.id;
     document.getElementById('acc-name').value = acc.name;
@@ -2629,11 +2766,11 @@
     document.getElementById('acc-ignore-bonus').checked = acc.ignore_bonus;
     document.getElementById('api-test-status').style.display = 'none';
 
-    renderProviderSelect(acc.provider);
+    renderProviderSelect(acc.provider, acc.credentials);
     openModal('modal-account');
   }
 
-  function renderProviderSelect(selectedId = null) {
+  function renderProviderSelect(selectedId = null, existingCreds = null) {
     const select = document.getElementById('acc-provider');
     select.innerHTML = '';
     state.providers.forEach(p => {
@@ -2643,35 +2780,50 @@
       if (selectedId ? p.id === selectedId : p.id === 'selectel') opt.selected = true;
       select.appendChild(opt);
     });
-    onProviderChange();
+    onProviderChange(existingCreds);
   }
 
-  function onProviderChange() {
+  function onProviderChange(existingCreds = null) {
     const provId = document.getElementById('acc-provider').value;
     const meta = state.providers.find(p => p.id === provId);
     if (!meta) return;
 
-    // Default tariffs if new
     if (!document.getElementById('acc-form-id').value) {
       document.getElementById('acc-free-tier').value = meta.default_free_gb;
       document.getElementById('acc-price-per-gb').value = meta.default_price_per_gb;
     }
 
-    // Dynamic fields
+    const creds = existingCreds || (state.currentEditingAccount && state.currentEditingAccount.credentials) || {};
+
     const fieldsWrap = document.getElementById('acc-credentials-fields');
     fieldsWrap.innerHTML = '';
     meta.fields.forEach(f => {
       const div = document.createElement('div');
       div.className = 'form-group';
+      const existingVal = creds[f.key];
+      const isMasked = existingVal && typeof existingVal === 'string' && existingVal.startsWith('••••');
+
+      let placeholder = f.placeholder;
+      let isRequired = f.required;
+      let initialVal = '';
+
+      if (isMasked) {
+        placeholder = `Сохранено (${existingVal}) — оставьте пустым, чтобы не менять`;
+        isRequired = false;
+      } else if (existingVal && !isMasked) {
+        initialVal = existingVal;
+      }
+
       div.innerHTML = `
-        <label>${f.label} ${f.required ? '<span style="color:var(--red);">*</span>' : ''}</label>
-        <input type="${f.type}" class="form-control" data-cred-key="${f.key}" placeholder="${f.placeholder}" ${f.required ? 'required' : ''}>
+        <label>${f.label} ${isRequired ? '<span style="color:var(--red);">*</span>' : ''}</label>
+        <input type="${f.type}" class="form-control" data-cred-key="${f.key}" 
+               ${isMasked ? `data-masked="${existingVal}"` : ''} 
+               placeholder="${placeholder}" value="${initialVal}" ${isRequired ? 'required' : ''}>
         ${f.help ? `<span style="font-size:11px; color:var(--text-dim);">${f.help}</span>` : ''}
       `;
       fieldsWrap.appendChild(div);
     });
 
-    // Instructions Box
     const helpContent = document.getElementById('provider-help-content');
     const stepsHtml = meta.help.steps.map(s => `<li>${s}</li>`).join('');
     helpContent.innerHTML = `
@@ -2688,7 +2840,10 @@
     const provId = document.getElementById('acc-provider').value;
     const creds = {};
     document.querySelectorAll('#acc-credentials-fields input').forEach(inp => {
-      creds[inp.dataset.credKey] = inp.value;
+      const val = inp.value.trim();
+      const masked = inp.dataset.masked;
+      if (val) creds[inp.dataset.credKey] = val;
+      else if (masked) creds[inp.dataset.credKey] = masked;
     });
 
     const statusEl = document.getElementById('api-test-status');
@@ -2724,7 +2879,13 @@
 
     const creds = {};
     document.querySelectorAll('#acc-credentials-fields input').forEach(inp => {
-      if (inp.value) creds[inp.dataset.credKey] = inp.value;
+      const key = inp.dataset.credKey;
+      const val = inp.value.trim();
+      if (val) {
+        creds[key] = val;
+      } else if (inp.dataset.masked) {
+        creds[key] = inp.dataset.masked;
+      }
     });
 
     const payload = {
@@ -3046,6 +3207,70 @@
     reader.readAsText(file);
   }
 
+  // --- Security & PIN Modal Handlers ---
+  function openSecurityModal(alertMsg = null) {
+    document.getElementById('sec-backend-url').value = getBackendBaseUrl();
+    document.getElementById('sec-access-pin').value = getAccessPin();
+    const alertBox = document.getElementById('security-alert-box');
+    if (alertMsg) {
+      alertBox.innerText = alertMsg;
+      alertBox.style.display = 'block';
+    } else {
+      alertBox.style.display = 'none';
+    }
+    document.getElementById('sec-test-result').style.display = 'none';
+    openModal('modal-security');
+  }
+
+  async function saveSecuritySettings() {
+    const backendUrl = document.getElementById('sec-backend-url').value.trim().replace(/\/+$/, '');
+    const pin = document.getElementById('sec-access-pin').value.trim();
+    localStorage.setItem('cdn_split_backend_url', backendUrl);
+    localStorage.setItem('cdn_split_access_pin', pin);
+
+    const resBox = document.getElementById('sec-test-result');
+    resBox.style.display = 'block';
+    resBox.style.color = 'var(--text-muted)';
+    resBox.innerText = 'Проверка подключения к серверу...';
+
+    try {
+      isServerlessMode = false;
+      const testUrl = resolveUrl('/api/auth/check');
+      const r = await fetch(testUrl, { headers: getRequestHeaders() });
+      if (r.status === 401) {
+        resBox.style.color = 'var(--red)';
+        resBox.innerText = '✕ Неверный PIN-код доступа (401 Unauthorized)';
+        return;
+      }
+      if (r.ok) {
+        resBox.style.color = '#4ade80';
+        resBox.innerText = '✓ Сервер подключен и авторизован!';
+        updateModeBadge(true);
+        setTimeout(async () => {
+          closeModal('modal-security');
+          showToast('Подключение к серверу активно');
+          await refreshDashboard();
+        }, 600);
+        return;
+      }
+      resBox.style.color = 'var(--red)';
+      resBox.innerText = `✕ Сервер вернул HTTP ${r.status}`;
+    } catch (e) {
+      resBox.style.color = 'var(--red)';
+      resBox.innerText = `✕ Ошибка соединения: ${e.message}`;
+    }
+  }
+
+  function disconnectToLocalStorage() {
+    localStorage.removeItem('cdn_split_backend_url');
+    localStorage.removeItem('cdn_split_access_pin');
+    isServerlessMode = true;
+    updateModeBadge(false);
+    closeModal('modal-security');
+    showToast('Переключено в автономный режим (LocalStorage)');
+    refreshDashboard();
+  }
+
   function setupEventListeners() {
     document.getElementById('btn-sync-all').onclick = syncAll;
     document.getElementById('btn-settle-up').onclick = settleUp;
@@ -3054,6 +3279,9 @@
     document.getElementById('btn-open-history').onclick = openHistoryModal;
     document.getElementById('btn-seed-demo').onclick = resetDemoData;
     document.getElementById('btn-open-sync-modal').onclick = openSyncModal;
+
+    // Security Modal Buttons
+    document.getElementById('btn-save-security').onclick = saveSecuritySettings;
 
     // Export / Import
     document.getElementById('btn-export-json').onclick = exportConfig;
@@ -3072,7 +3300,7 @@
     });
 
     // Account modal buttons
-    document.getElementById('acc-provider').onchange = onProviderChange;
+    document.getElementById('acc-provider').onchange = () => onProviderChange();
     document.getElementById('btn-test-account-api').onclick = testAccountApi;
     document.getElementById('btn-save-account').onclick = saveAccount;
 
