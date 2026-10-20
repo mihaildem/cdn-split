@@ -32,7 +32,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-of
 
 /* top */
 .top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
-.top-in{max-width:1120px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:10px}
+.top-in{position:relative;max-width:1120px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:10px}
 .brand,.logo{display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none}
 .wm{font-family:var(--font);font-weight:800;font-size:17px;letter-spacing:-.05em;white-space:nowrap}
 .wm em{font-style:normal;color:var(--ink3);margin:0 1px}
@@ -46,6 +46,16 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-of
 .chip .t{color:var(--ink2);font-size:11px;font-weight:500}
 .iconbtn{width:34px;height:34px;border-radius:var(--Rc);display:grid;place-items:center;color:var(--ink2)}
 .iconbtn:hover{background:var(--soft)}.iconbtn svg{width:18px;height:18px}
+
+/* appearance popover (#look-pop) anchored under the header actions */
+#look-pop{display:none;position:absolute;top:calc(100% + 4px);right:20px;z-index:70;background:var(--surface);border:1px solid var(--line);border-radius:var(--R);padding:13px 14px;box-shadow:0 14px 34px rgba(0,0,0,.22);min-width:236px;max-width:calc(100vw - 24px)}
+#look-pop.open{display:grid;gap:8px;animation:pp .13s cubic-bezier(.34,1.4,.64,1)}
+#look-pop .seg{justify-self:start;max-width:100%}
+#look-pop .sws{justify-self:start}
+#look-pop .field-l{margin:0}
+@keyframes pp{from{opacity:0;transform:translateY(-5px)}}
+@media(prefers-reduced-motion:reduce){#look-pop.open{animation:none}}
+@media(max-width:559px){#look-pop{right:12px}}
 .i-sun{display:none}html[data-t=dark] .i-sun{display:block}html[data-t=dark] .i-moon{display:none}
 html.tx *{transition:background-color .35s,color .35s,border-color .35s,fill .35s,stroke .35s!important}
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb,var(--surface) 96%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line);display:flex;padding:6px 8px calc(6px + env(safe-area-inset-bottom))}

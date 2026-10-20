@@ -69,8 +69,8 @@
       </div>
       <nav class="topnav" id="topnav"></nav>
       <div class="sp"></div>
-      <button class="chip sq" id="skinbtn" data-a="skinCycle" title="Оформление: стиль, цвет, тема"></button>
-      <button class="iconbtn" id="thbtn" data-a="themeToggle" title="Светлая / тёмная тема">
+      <button class="chip sq" id="look-btn" aria-haspopup="true" aria-expanded="false" title="Оформление: стиль, цвет, тема"></button>
+      <button class="iconbtn" id="theme-btn" data-a="themeToggle" title="Светлая / тёмная тема">
         <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/>
         </svg>
@@ -86,6 +86,30 @@
         </svg>
         <span class="t" id="fresh"></span>
       </button>
+
+      <!-- Appearance Popover: 3 skins × 5 palettes × 3 theme modes (toggled by #look-btn) -->
+      <div id="look-pop" role="menu" aria-hidden="true">
+        <div class="field-l">Стиль</div>
+        <div class="seg" role="radiogroup" aria-label="Стиль">
+          <button role="menuitemradio" data-a="skin" data-v="pixel">Pixel</button>
+          <button role="menuitemradio" data-a="skin" data-v="air">Air</button>
+          <button role="menuitemradio" data-a="skin" data-v="orbit">Orbit</button>
+        </div>
+        <div class="field-l">Цвет</div>
+        <div class="sws">
+          <button class="swb" data-a="pal" data-v="mint" title="Мята"><span class="sw" style="background:#c8edb2"><i style="background:#365b34"></i><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" style="color:#365b34" stroke-width="2.2" shape-rendering="crispEdges" stroke-linecap="square"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span>Мята</button>
+          <button class="swb" data-a="pal" data-v="sky" title="Небо"><span class="sw" style="background:#e2ecfc"><i style="background:#2c4163"></i><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" style="color:#2c4163" stroke-width="2.2" shape-rendering="crispEdges" stroke-linecap="square"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span>Небо</button>
+          <button class="swb" data-a="pal" data-v="lilac" title="Сирень"><span class="sw" style="background:#e9dffb"><i style="background:#493660"></i><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" style="color:#493660" stroke-width="2.2" shape-rendering="crispEdges" stroke-linecap="square"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span>Сирень</button>
+          <button class="swb" data-a="pal" data-v="peach" title="Персик"><span class="sw" style="background:#ffdcc6"><i style="background:#5c3a28"></i><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" style="color:#5c3a28" stroke-width="2.2" shape-rendering="crispEdges" stroke-linecap="square"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span>Персик</button>
+          <button class="swb" data-a="pal" data-v="graphite" title="Графит"><span class="sw" style="background:#1b1f24"><i style="background:#e9ecef"></i><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" style="color:#e9ecef" stroke-width="2.2" shape-rendering="crispEdges" stroke-linecap="square"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span>Графит</button>
+        </div>
+        <div class="field-l">Тема</div>
+        <div class="seg" role="radiogroup" aria-label="Тема">
+          <button role="menuitemradio" data-a="theme" data-v="light">Светлая</button>
+          <button role="menuitemradio" data-a="theme" data-v="dark">Тёмная</button>
+          <button role="menuitemradio" data-a="theme" data-v="auto">Авто</button>
+        </div>
+      </div>
     </div>
   </header>
 

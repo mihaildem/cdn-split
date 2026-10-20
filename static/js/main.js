@@ -158,6 +158,29 @@ export function goHome() {
   triggerLogoAnim('spin');
 }
 
+function syncLookPop(state) {
+  const pop = document.getElementById('look-pop');
+  if (!pop) return;
+  const skin = state.skin;
+  const pal = curPal(state);
+  const theme = state.theme;
+  pop.querySelectorAll('[data-a="skin"]').forEach((b) => b.classList.toggle('on', b.dataset.v === skin));
+  pop.querySelectorAll('[data-a="pal"]').forEach((b) => b.classList.toggle('on', b.dataset.v === pal));
+  pop.querySelectorAll('[data-a="theme"]').forEach((b) => b.classList.toggle('on', b.dataset.v === theme));
+  const lookBtn = document.getElementById('look-btn');
+  if (lookBtn) lookBtn.setAttribute('aria-expanded', String(pop.classList.contains('open')));
+}
+
+function closeLookPop() {
+  const pop = document.getElementById('look-pop');
+  if (pop && pop.classList.contains('open')) {
+    pop.classList.remove('open');
+    pop.setAttribute('aria-hidden', 'true');
+    const lookBtn = document.getElementById('look-btn');
+    if (lookBtn) lookBtn.setAttribute('aria-expanded', 'false');
+  }
+}
+
 function render() {
   const items = [
     ['home', 'Главная', ICONS.home],
@@ -179,10 +202,12 @@ function render() {
     sideNav.innerHTML = topNav.innerHTML;
   }
 
-  const skinBtn = $('#skinbtn');
+  const skinBtn = $('#look-btn');
   if (skinBtn) {
     skinBtn.innerHTML = `<span style="width:12px;height:12px;border-radius:${S.skin === 'pixel' ? 0 : '50%'};background:var(--accent);border:1.5px solid var(--ink);display:inline-block"></span><span class="t" style="color:var(--ink)">${SKINS[S.skin] || 'Pixel'}</span>`;
   }
+
+  syncLookPop(S);
 
   const tabbar = $('#tabbar');
   if (tabbar) {
@@ -237,6 +262,13 @@ function render() {
 
 // Global Event Delegation
 document.addEventListener('click', (e) => {
+  // Close the appearance popover when clicking anywhere outside of it
+  // (never on the same click that opened it — #look-btn stops propagation).
+  const pop = document.getElementById('look-pop');
+  if (pop && pop.classList.contains('open') && !pop.contains(e.target) && !e.target.closest('#look-btn')) {
+    closeLookPop();
+  }
+
   const brandEl = e.target.closest('.brand, [data-act="go-home"]');
   if (brandEl) {
     goHome();
@@ -826,6 +858,23 @@ document.querySelectorAll('.brand, [data-act="go-home"]').forEach((el) => {
     goHome();
   });
 });
+
+// Appearance popover toggle — stopPropagation so the document click handler
+// doesn't immediately close the popover on the same click that opened it.
+const lookBtn = document.getElementById('look-btn');
+const lookPop = document.getElementById('look-pop');
+if (lookBtn && lookPop) {
+  lookBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = !lookPop.classList.contains('open');
+    lookPop.classList.toggle('open', open);
+    lookPop.setAttribute('aria-hidden', String(!open));
+    lookBtn.setAttribute('aria-expanded', String(open));
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') closeLookPop();
+  });
+}
 
 // Remove splash screen after intro animation completes
 setTimeout(() => {
