@@ -9,7 +9,7 @@ import { calculateSplitwiseOverview } from "./services/billing.js";
 
 export const store = reactive({
   connectionMode: "server", backendUrl: api.config.backendUrl, accessPin: api.config.accessPin,
-  uiVersion: localStorage.getItem("cdn_ui_version") || "v2",
+  uiVersion: new URLSearchParams(window.location.search).get("ui") || localStorage.getItem("cdn_ui_version") || "v2",
   activeFilter: "all", activeModal: null, modalData: null, loading: false,
   toasts: [], providers: PROVIDERS_CATALOG, bots: [], settlements: [],
   dashboard: {

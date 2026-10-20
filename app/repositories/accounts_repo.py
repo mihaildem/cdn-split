@@ -129,14 +129,15 @@ def update_account_sync_result(
     now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     if success:
         updates: dict[str, Any] = {
-            "balance_rub": balance_rub,
-            "bonus_balance_rub": bonus_balance_rub,
             "sync_status": "ok",
             "sync_error": None,
             "last_synced_at": now_str,
         }
-        if account_identifier:
-            updates["account_identifier"] = account_identifier
+        if account_identifier != "demo-client@domain.ru":
+            updates["balance_rub"] = balance_rub
+            updates["bonus_balance_rub"] = bonus_balance_rub
+            if account_identifier:
+                updates["account_identifier"] = account_identifier
         return update_account(account_id, updates)
     else:
         return update_account(
