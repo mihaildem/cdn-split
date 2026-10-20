@@ -9,11 +9,22 @@ import { calculateSplitwiseOverview } from "./services/billing.js";
 
 export const store = reactive({
   connectionMode: "server", backendUrl: api.config.backendUrl, accessPin: api.config.accessPin,
+  uiVersion: localStorage.getItem("cdn_ui_version") || "v2",
   activeFilter: "all", activeModal: null, modalData: null, loading: false,
   toasts: [], providers: PROVIDERS_CATALOG, bots: [], settlements: [],
   dashboard: {
     splitwise: { summary_text: "Загрузка...", direction: "settled", total_unsettled_cost: 0, participant_stats: [], transfers: [] },
     accounts: [], participants: [], last_updated_at: ""
+  },
+
+  setUiVersion(v) {
+    store.uiVersion = v;
+    try { localStorage.setItem("cdn_ui_version", v); } catch {}
+    store.notify(`Интерфейс: ${v.toUpperCase()}`, "info");
+  },
+  toggleUiVersion() {
+    const next = store.uiVersion === "v1" ? "v2" : (store.uiVersion === "v2" ? "v3" : "v1");
+    store.setUiVersion(next);
   },
 
   filteredAccounts: computed(() => {

@@ -2,7 +2,7 @@
  * Main Entry Point - Root Vue 3 Application
  */
 
-import { createApp } from "vue";
+import { createApp, watchEffect } from "vue";
 import { store } from "./store.js";
 import { AppHeader } from "./components/AppHeader.js";
 import { SplitwiseHero } from "./components/SplitwiseHero.js";
@@ -18,10 +18,16 @@ const App = {
   },
   setup() {
     store.loadAll();
+    watchEffect(() => {
+      if (typeof document !== "undefined") {
+        document.documentElement.classList.toggle("theme-v2", store.uiVersion === "v2");
+        document.documentElement.classList.toggle("theme-v3", store.uiVersion === "v3");
+      }
+    });
     return { store };
   },
   template: `
-    <div class="app-container">
+    <div class="app-container" :class="{ 'theme-v2': store.uiVersion === 'v2', 'theme-v3': store.uiVersion === 'v3' }">
       <AppHeader :store="store" />
       <SplitwiseHero :store="store" />
 

@@ -27,6 +27,34 @@ export const AppHeader = {
       </div>
 
       <div class="header-actions">
+        <!-- 3-Way UI Version Switcher [v1 | v2 | v3 👾] -->
+        <div class="ui-segmented-switcher" title="Стиль интерфейса: v1 Классика / v2 Linear / v3 Pixel">
+          <button
+            class="ui-ver-btn"
+            :class="{ active: store.uiVersion === 'v1' }"
+            @click="store.setUiVersion('v1')"
+            title="v1: Bento Classic"
+          >
+            v1
+          </button>
+          <button
+            class="ui-ver-btn"
+            :class="{ active: store.uiVersion === 'v2' }"
+            @click="store.setUiVersion('v2')"
+            title="v2: Geist / Linear Precision"
+          >
+            v2
+          </button>
+          <button
+            class="ui-ver-btn"
+            :class="{ active: store.uiVersion === 'v3' }"
+            @click="store.setUiVersion('v3')"
+            title="v3: Teenage / Nothing Pixel Bitmap"
+          >
+            v3 👾
+          </button>
+        </div>
+
         <button
           class="btn btn-sm"
           :disabled="store.loading"
