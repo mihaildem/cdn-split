@@ -14,8 +14,7 @@ export function renderHist(state) {
   <div class="list" style="margin-top:8px">${
     state.history && state.history.length
       ? state.history
-          .map(
-            (h, i) => `<div><div class="row between"><div><div class="tr">${
+          .map((h, i) => `<div><div class="row between"><div><div class="tr">${
               h.tr && h.tr.length
                 ? h.tr.map((t) => `${nm(t.from, state)} → ${nm(t.to, state)} · <span class="num">${rub(t.sum)}</span>`).join('<br>')
                 : 'Без переводов'
@@ -31,7 +30,11 @@ export function renderHist(state) {
       .join(' · ')}</div></div>`
           )
           .join('')
-      : '<div class="empty">Пока нет расчётов</div>'
+      : '<div class="empty">' +
+        (state.live && !state.members.length
+          ? 'Добавьте первого участника…'
+          : 'Расчётов пока нет') +
+        '</div>'
   }</div>
   <p class="note">Отменить можно только последний расчёт</p>
   <h2 style="margin-top:26px">Изменения назначений</h2>

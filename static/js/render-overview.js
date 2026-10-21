@@ -276,16 +276,35 @@ export function accHTML(a, h, compact, state) {
    </div></div>`;
 }
 
+/** LIVE: приветственная заглушка, пока нет участников/аккаунтов. */
+function liveWelcomeHTML(state) {
+  if (!state.live) return '';
+  const noMembers = !state.members.length;
+  const noAccounts = !state.accounts.length;
+  if (!noMembers && !noAccounts) return '';
+  return `<div class="card" style="margin-top:14px;padding:16px 18px">
+    <b>Начало работы</b>
+    ${noMembers ? `<div class="muted small" style="margin:6px 0 8px">Добавьте первого участника…</div><button class="btn sm" data-a="tab" data-v="set">Настройки · участники</button>` : ''}
+    ${noAccounts ? `<div class="muted small" style="margin:6px 0 8px">Подключите первый CDN-аккаунт — балансы и ресурсы подтянутся из API.</div><button class="btn sm pri" data-a="addAcc">${ICONS.plus}Подключить аккаунт</button>` : ''}
+  </div>`;
+}
+
 export function renderHome(state) {
   const c = calc(state);
   const hs = state.accounts.map((a) => ({ a, h: health(a) })).sort((x, y) => y.h.sev - x.h.sev);
   const bad = hs.filter((x) => x.h.sev > 0);
   const ok = hs.filter((x) => x.h.sev === 0);
+  const noAccounts = state.live && !state.accounts.length;
 
   return `<div class="grid home" id="view-main">
-   <div><div class="sticky">${heroHTML(c, state)}</div></div>
+   <div><div class="sticky">${heroHTML(c, state)}${liveWelcomeHTML(state)}</div></div>
    <div>${attHTML(c, state)}
      <div class="row between" style="margin-bottom:6px"><h2 style="margin:0">Аккаунты · ${state.accounts.length}</h2><button class="btn sm pri" data-a="addAcc">${ICONS.plus}Добавить</button></div>
+     ${
+       noAccounts
+         ? `<div class="card" style="padding:18px;text-align:center"><div class="empty">Подключите первый CDN-аккаунт</div><button class="btn pri" data-a="addAcc">${ICONS.plus}Подключить аккаунт</button></div>`
+         : ''
+     }
      ${bad.map((x) => accHTML(x.a, x.h, false, state)).join('')}
      ${ok.length ? `<h2 class="group-t">Всё в порядке · ${ok.length}</h2>${ok.map((x) => accHTML(x.a, x.h, true, state)).join('')}` : ''}
    </div></div>`;

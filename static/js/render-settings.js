@@ -70,18 +70,22 @@ export function renderSet(state) {
    <div>
     <h2>Участники</h2>
     <div class="card">
-     ${state.members
-       .map(
-         (m) => `<div style="margin-bottom:14px">
-        <div class="row">${av(m.id, state, true)}<input class="input" value="${esc(m.name)}" data-a="rename" data-v="${m.id}" maxlength="20">${
-           state.members.length > 2
-             ? `<button class="iconbtn" data-a="delMember" data-v="${m.id}">${ICONS.x}</button>`
-             : ''
-         }</div>
-        <input class="input" style="margin-top:6px;height:40px;font-size:13px" value="${esc(m.sbp || '')}" data-a="sbp" data-v="${m.id}" placeholder="Реквизиты для перевода (СБП, телефон, банк)">
-      </div>`
-       )
-       .join('')}
+     ${
+       state.live && !state.members.length
+         ? `<div class="empty">Добавьте первого участника…</div><button class="btn pri block" data-a="addMember">${ICONS.plus}Добавить участника</button>`
+         : state.members
+             .map(
+               (m) => `<div style="margin-bottom:14px">
+         <div class="row">${av(m.id, state, true)}<input class="input" value="${esc(m.name)}" data-a="rename" data-v="${m.id}" maxlength="20">${
+                  state.members.length > 2
+                    ? `<button class="iconbtn" data-a="delMember" data-v="${m.id}">${ICONS.x}</button>`
+                    : ''
+                }</div>
+         <input class="input" style="margin-top:6px;height:40px;font-size:13px" value="${esc(m.sbp || '')}" data-a="sbp" data-v="${m.id}" placeholder="Реквизиты для перевода (СБП, телефон, банк)">
+       </div>`
+             )
+             .join('')
+     }
      ${state.members.length < 4 ? `<button class="btn block ghost" data-a="addMember">${ICONS.plus}Добавить участника</button>` : ''}
      <p class="hint">«Поровну» делит расходы на всех (сейчас на ${state.members.length}). Реквизиты показываются должнику по кнопке «Реквизиты».</p>
     </div>
