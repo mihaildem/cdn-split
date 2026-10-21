@@ -8,7 +8,7 @@
  * - Toast with 6-second timeout and "Отменить" action
  */
 
-import { PROV, PROVKEYS, ICONS, CHK_S, XX } from './seed.js';
+import { PROV, PROVKEYS, PROV_API_KEYS, ICONS, CHK_S, XX } from './seed.js';
 import { esc } from './ledger.js';
 import { seg } from './render-overview.js';
 import { appearHTML } from './render-settings.js';
@@ -48,9 +48,37 @@ export function toast(msg, undo) {
   }, 6000);
 }
 
+/**
+ * Credential field definitions for the account sheet.
+ * LIVE: real fields from the backend catalog (GET /api/providers) so that the
+ * values map 1:1 into the credentials dict (e.g. oauth_token / folder_id).
+ * DEMO / fallback: static seed.js fields with legacy k0..k2 draft keys.
+ */
+export function getProvFieldDefs(state, provKey) {
+  const bp = state && state.live && state.providers && state.providers[provKey];
+  if (bp && Array.isArray(bp.fields) && bp.fields.length) {
+    return bp.fields.map((f) => ({
+      key: f.key,
+      d: 'cred:' + f.key,
+      label: f.label,
+      type: f.type || 'text',
+      placeholder: f.placeholder || '',
+    }));
+  }
+  const p = PROV[provKey] || PROV.selectel;
+  return (p.fields || []).map((f, i) => ({
+    key: null,
+    d: 'k' + i,
+    label: f[0],
+    type: f[1],
+    placeholder: f[2],
+  }));
+}
+
 export function accForm(draft, state) {
   const p = PROV[draft.prov] || PROV.selectel;
   const isManual = draft.source === 'manual';
+  const fields = getProvFieldDefs(state, draft.prov);
 
   return `<div class="lab" style="margin-top:6px">Провайдер</div>
   <div class="pgrid">${PROVKEYS.map(
@@ -82,12 +110,12 @@ export function accForm(draft, state) {
         ? `<div class="helpbox"><b>Как получить ключ в ${p.n}</b><ol>${p.help.steps.map((s) => `<li>${s}</li>`).join('')}</ol><a href="${p.help.url}" target="_blank" rel="noopener">Открыть инструкцию ↗</a></div>`
         : ''
     }
-    ${p.fields
+    ${fields
       .map(
-        (f, i) =>
+        (f) =>
           `<div style="margin-top:10px">
-            <div class="xs muted" style="margin-bottom:5px">${f[0]}</div>
-            <input class="input" type="${f[1]}" placeholder="${esc(f[2])}" data-d="k${i}" value="${esc(draft['k' + i] || '')}" autocomplete="off">
+            <div class="xs muted" style="margin-bottom:5px">${esc(f.label)}</div>
+            <input class="input" type="${f.type}" placeholder="${esc(f.placeholder)}" data-d="${f.d}" value="${esc(draft[f.d] || '')}" autocomplete="off">
           </div>`
       )
       .join('')}
@@ -146,14 +174,23 @@ export function accForm(draft, state) {
 export function openAccSheet(account, state) {
   isHelpOpen = false;
   testResultHTML = '';
+
+  let credFill = {};
+  if (account) {
+    if (state && state.live) {
+      // LIVE: маскированные значения из GET /api/accounts (токен скрыт,
+      // бэкенд сохранит прежние значения, если поле не редактировалось)
+      getProvFieldDefs(state, account.prov).forEach((f) => {
+        const v = (account.credentials || {})[f.key];
+        if (f.key) credFill[f.d] = v === undefined || v === null ? '' : String(v);
+      });
+    } else {
+      credFill = { k0: '••••••••', k1: '••••••••', k2: '••••••••' };
+    }
+  }
+
   activeDraft = account
-    ? {
-        ...account,
-        k0: '••••••••',
-        k1: '••••••••',
-        k2: '••••••••',
-        source: account.source || 'api',
-      }
+    ? { ...account, ...credFill, source: account.source || 'api' }
     : {
         prov: 'selectel',
         source: 'api',
