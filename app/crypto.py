@@ -21,10 +21,31 @@ SECRET_KEYS = {
     "bot_token",
 }
 
+DEFAULT_SECRET_KEY = "default-homelab-secret-change-me"
+MIN_SECRET_KEY_LENGTH = 24
+
 
 def get_secret_key() -> bytes:
-    key_str = os.environ.get("APP_SECRET_KEY", "default-homelab-secret-change-me")
+    key_str = os.environ.get("APP_SECRET_KEY", DEFAULT_SECRET_KEY)
     return key_str.encode("utf-8")
+
+
+def validate_secret_key_for_production() -> None:
+    """Refuse to start in production with an insecure APP_SECRET_KEY.
+
+    Called at startup: with APP_ENV=production the app aborts when the secret
+    key is unset, left at the default value, or shorter than MIN_SECRET_KEY_LENGTH.
+    """
+    if os.environ.get("APP_ENV", "").strip().lower() != "production":
+        return
+    key = os.environ.get("APP_SECRET_KEY", "").strip()
+    if not key or key == DEFAULT_SECRET_KEY or len(key) < MIN_SECRET_KEY_LENGTH:
+        raise RuntimeError(
+            "Insecure APP_SECRET_KEY in production: the value is missing, matches the "
+            "default, or is shorter than 24 characters. Generate one with "
+            "`openssl rand -hex 32` and put it in .env (APP_SECRET_KEY=...), "
+            "or set APP_ENV=development for local testing."
+        )
 
 
 def _generate_keystream(enc_key: bytes, iv: bytes, length: int) -> bytes:

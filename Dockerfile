@@ -17,8 +17,14 @@ COPY app/ ./app/
 COPY index.html ./index.html
 COPY static/ ./static/
 COPY brand-assets/ ./brand-assets/
+COPY manifest.webmanifest favicon.ico ./
 
-RUN mkdir -p /data
+# Non-privileged runtime user; /data is the only writable path (bind-mounted volume).
+RUN mkdir -p /data \
+    && useradd --system --uid 1000 --create-home --shell /usr/sbin/nologin app \
+    && chown -R app:app /data
+
+USER app
 
 EXPOSE 8080
 

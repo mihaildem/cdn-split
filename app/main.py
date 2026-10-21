@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import db, notifier, providers
+from app.crypto import validate_secret_key_for_production
 from app.api import (
     account_ops_router,
     accounts_router,
@@ -26,6 +27,9 @@ from app.api import (
 
 SYNC_INTERVAL = int(os.environ.get("SYNC_INTERVAL_SECONDS", 300))
 PING_INTERVAL = int(os.environ.get("PING_INTERVAL_SECONDS", 180))
+
+# Fail fast (at startup) when running with APP_ENV=production and an insecure secret.
+validate_secret_key_for_production()
 
 
 async def background_sync_worker():

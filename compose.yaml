@@ -13,12 +13,18 @@ services:
     volumes:
       - ./data:/data
     environment:
+      - APP_ENV=production
       - DATA_DIR=/data
       - SYNC_INTERVAL_SECONDS=${SYNC_INTERVAL_SECONDS:-300}
       - PING_INTERVAL_SECONDS=${PING_INTERVAL_SECONDS:-180}
-      - APP_SECRET_KEY=${APP_SECRET_KEY:-default-homelab-secret-change-me}
-      - APP_ACCESS_PIN=${APP_ACCESS_PIN:-}
+      - APP_SECRET_KEY=${APP_SECRET_KEY:?set APP_SECRET_KEY in .env}
+      - APP_ACCESS_PIN=${APP_ACCESS_PIN:?set APP_ACCESS_PIN in .env}
       - TELEGRAM_PROXY=${TELEGRAM_PROXY:-}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s

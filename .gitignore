@@ -4,3 +4,11 @@
 *.db-shm
 __pycache__/
 *.pyc
+.pytest_cache/
+.venv/
+data/
+backups/
+.env
+.env.*
+!.env.example
+.DS_Store
