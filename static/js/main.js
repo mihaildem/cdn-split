@@ -8,10 +8,24 @@
  * - Two-step settlement flow, undoable assignment changes, CSV export
  */
 
-import { DAY, DIM, F, SKINS, SKIN_PAL, PALS, PROV, ICONS, CHK_S, XX, mk } from './seed.js';
+import { DAY, DIM, F, SKINS, SKIN_PAL, PALS, PROV, PROV_API_KEYS, ICONS, CHK_S, XX, mk } from './seed.js';
 import { getBrandMarkSVG, triggerLogoAnim, updateBrandDebtState } from './brand-mark.js';
 import { esc, rub, gb, mem, nm, av, ago, accCalc, spikeX, health, calc, freeze, settle, undoSettle } from './ledger.js';
-import { loadPersistedState, persistState, testProviderApi, testBotApi } from './api-sync.js';
+import {
+  loadPersistedState,
+  persistState,
+  getEmptyState,
+  detectBackend,
+  fetchLiveBundle,
+  adaptBackendToState,
+  api,
+  ApiError,
+  showPinScreen,
+  setUnauthorizedHandler,
+  liveApi,
+  downloadBackendCsv,
+  setLocalSbp,
+} from './api-sync.js';
 import { renderHome, updateSbar } from './render-overview.js';
 import { renderHist, exportCSV } from './render-history.js';
 import { renderSet, appearHTML, curPal } from './render-settings.js';
@@ -34,6 +48,87 @@ const $ = (selector) => document.querySelector(selector);
 
 // Initialize State
 let S = loadPersistedState();
+
+/* ------------------------------------------------------------------------ */
+/*  LIVE / DEMO mode                                                         */
+/*  LIVE  — backend reachable: state built from /api/*, actions wired to API. */
+/*  DEMO  — no backend (GitHub Pages / offline): localStorage + seed, as     */
+/*          before. A small DEMO pill in the header marks this mode.         */
+/* ------------------------------------------------------------------------ */
+
+function updateModePill() {
+  const p = document.getElementById('mode-pill');
+  // показываем только в подтверждённом демо-режиме
+  if (p) p.hidden = !(S.live === false);
+}
+
+function showApiError(err, fallback) {
+  const d = (err && (err.detail || err.message)) || fallback || 'Ошибка';
+  toast('Ошибка: ' + d);
+}
+
+/** Re-fetch dashboard/overview/telegram/settlements and re-render. */
+async function reloadLive() {
+  try {
+    const bundle = await fetchLiveBundle();
+    Object.assign(S, adaptBackendToState(bundle, S));
+    render();
+    updateModePill();
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return; // PIN hook already re-prompting
+    showApiError(err, 'Не удалось загрузить данные');
+  }
+}
+
+/** 401 from any api() call → clear stored PIN, show prompt, reload. */
+setUnauthorizedHandler(async () => {
+  const ok = await showPinScreen();
+  if (ok) await reloadLive();
+});
+
+async function boot() {
+  const det = await detectBackend();
+  if (det.live) {
+    // LIVE: старт с пустого состояния (без демо-участников/аккаунтов/ботов)
+    S = getEmptyState();
+    render();
+    if (det.pinRequired) await showPinScreen();
+    await reloadLive();
+  } else {
+    // DEMO: текущее поведение localStorage + seed
+    S.live = false;
+    updateModePill();
+  }
+}
+
+const is401 = (err) => err instanceof ApiError && err.status === 401;
+
+/* Собирает креденшалы из черновика формы аккаунта по ключам каталога бэкенда */
+function collectDraftCreds(draft, provKey) {
+  const out = {};
+  const bp = S.live && S.providers && S.providers[provKey];
+  if (bp && Array.isArray(bp.fields) && bp.fields.length) {
+    bp.fields.forEach((f) => {
+      const val = draft['cred:' + f.key];
+      if (val !== undefined && String(val).trim() !== '') out[f.key] = String(val).trim();
+    });
+  } else {
+    // Фолбэк: поля seed.js → ключи каталога бэкенда по порядку
+    const keys = PROV_API_KEYS[provKey] || [];
+    keys.forEach((k, i) => {
+      const val = draft['k' + i];
+      if (val !== undefined && String(val).trim() !== '') out[k] = String(val).trim();
+    });
+  }
+  return out;
+}
+
+const num = (x) => {
+  const n = parseFloat(String(x ?? '').replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+};
+
+const consBody = (v) => (v === null || v === undefined ? { mode: 'unassigned' } : { consumer: v === 'all' ? 'split' : v });
 
 const snap = () => JSON.stringify({ adj: S.adj, accounts: S.accounts });
 const restore = (j) => {
@@ -113,6 +208,10 @@ function setTheme(v) {
 }
 
 function setAssign(kind, a, r, v) {
+  if (S.live) {
+    liveSetAssign(kind, a, r, v);
+    return;
+  }
   const before = snap();
   const c = accCalc(a);
 
@@ -148,6 +247,184 @@ function setAssign(kind, a, r, v) {
   }
   persistState(S);
   render();
+}
+
+/** LIVE: смена плательщика/потребителя через API, затем перезагрузка данных. */
+async function liveSetAssign(kind, a, r, v) {
+  const accId = a.id;
+  const resId = r.id;
+  const domain = r.domain;
+  const accName = a.name;
+  const oldPayer = a.payer;
+  const oldCons = r.consumer;
+  try {
+    if (kind === 'cons') {
+      await liveApi.setConsumer(resId, consBody(v));
+    } else {
+      await liveApi.setPayer(accId, v);
+    }
+    await reloadLive();
+    if (kind === 'cons') {
+      toast(
+        `${esc(domain)} → потребитель: ${v === 'all' ? 'поровну' : nm(v, S)} · с сегодня`,
+        () => revertLive('cons', resId, oldCons)
+      );
+    } else {
+      toast(`${nm(v, S)} стал платить за ${esc(accName)} · с сегодня`, () =>
+        revertLive('paid', accId, oldPayer)
+      );
+    }
+  } catch (err) {
+    if (!is401(err)) showApiError(err);
+  }
+}
+
+/** Отмена назначения (toast «Отменить») — повторный вызов API со старым значением. */
+async function revertLive(kind, id, oldVal) {
+  try {
+    if (kind === 'cons') {
+      await liveApi.setConsumer(id, consBody(oldVal));
+    } else {
+      await liveApi.setPayer(id, oldVal);
+    }
+    await reloadLive();
+  } catch (err) {
+    if (!is401(err)) showApiError(err);
+  }
+}
+
+/** LIVE: «Я перевёл» — pending-переводы от моего имени. */
+async function liveSent() {
+  const c = calc(S);
+  const out = c.tr.filter((t) => t.from === S.me);
+  if (!out.length) {
+    toast('Вас этот расчёт не касается');
+    return;
+  }
+  try {
+    for (const t of out) {
+      await liveApi.createTransfer(t.from, t.to, t.sum, 'pending', 'Отметка «Я перевёл»');
+    }
+    await reloadLive();
+    toast(`Отметили перевод. ${out[0] ? nm(out[0].to, S) : ''} получит уведомление в Telegram`);
+  } catch (err) {
+    if (!is401(err)) showApiError(err, 'Не удалось отметить перевод');
+  }
+}
+
+/** LIVE: снять свою отметку «Я перевёл» (pending → rejected). */
+async function liveCancelSent() {
+  const list = (S.transfers || []).filter(
+    (t) => t.status === 'pending' && t.from_member === S.me
+  );
+  try {
+    for (const t of list) await liveApi.rejectTransfer(t.id);
+    await reloadLive();
+    toast('Отметка о переводе отменена');
+  } catch (err) {
+    if (!is401(err)) showApiError(err, 'Не удалось отменить отметку');
+  }
+}
+
+/**
+ * LIVE: подтверждение расчёта. Если есть pending-перевод — подтверждаем его,
+ * иначе создаём confirmed-переводы по расчёту; затем POST /api/settle
+ * обнуляет незакрытые расходы (водяные знаки).
+ */
+async function liveConfirm() {
+  const c = calc(S);
+  const pending = (S.transfers || []).find((t) => t.status === 'pending');
+  const note = pending
+    ? `${nm(pending.from_member, S)} отметил · ${nm(S.me, S)} подтвердил`
+    : `${nm(S.me, S)} подтвердил без запроса`;
+  try {
+    if (pending) {
+      await liveApi.confirmTransfer(pending.id);
+    } else if (c.tr.length) {
+      for (const t of c.tr) {
+        await liveApi.createTransfer(t.from, t.to, t.sum, 'confirmed', note);
+      }
+    }
+    await liveApi.settle(note);
+    render();
+    triggerLogoAnim('merge');
+    await reloadLive();
+    toast('Расчёт записан в историю', () => liveUndoSettle());
+  } catch (err) {
+    if (!is401(err)) showApiError(err, 'Не удалось записать расчёт');
+  }
+}
+
+/** LIVE: отмена последнего расчёта (восстановление водяных знаков). */
+async function liveUndoSettle() {
+  try {
+    await liveApi.undoSettlement();
+    await reloadLive();
+    toast('Расчёт отменён');
+  } catch (err) {
+    if (!is401(err)) showApiError(err);
+  }
+}
+
+/** LIVE: создание/обновление аккаунта (POST/PUT /api/accounts). Креденшалы
+ *  write-only: бэкенд шифрует их и возвращает замаскированный токен. */
+async function liveSaveAcc(draft, editId) {
+  const creds = collectDraftCreds(draft, draft.prov);
+  if (!editId) {
+    // при создании маскированные значения не отправляем
+    Object.keys(creds).forEach((k) => {
+      if (String(creds[k]).startsWith('••••')) delete creds[k];
+    });
+  }
+  const payload = {
+    provider: draft.prov,
+    name: draft.name || (PROV[draft.prov] ? PROV[draft.prov].n : 'CDN Account'),
+    payer: draft.payer || S.me || 'misha',
+    free_tier_gb: num(draft.freeGb),
+    price_per_gb: num(draft.price) || 1.5,
+    ignore_bonus: !draft.countBonus,
+    low_balance_threshold: 200,
+  };
+  if (draft.source === 'manual') {
+    payload.balance_rub = num(draft.balance);
+  }
+  if (Object.keys(creds).length) payload.credentials = creds;
+  try {
+    if (editId) {
+      await liveApi.updateAccount(editId, payload);
+    } else {
+      await liveApi.createAccount(payload);
+    }
+    closeSheet();
+    await reloadLive();
+    toast(editId ? 'Аккаунт сохранён' : 'Аккаунт подключён, ресурсы загружены');
+  } catch (err) {
+    if (!is401(err)) showApiError(err, 'Не удалось сохранить аккаунт');
+  }
+}
+
+/** LIVE: ручной ввод трафика (POST /api/accounts/{id}/manual-usage).
+ *  Бэкенд ПРИБАВляет введённые ГБ к ресурсу, поэтому отправляем дельту:
+ *  «введённое − текущее». Баланс отправляем как есть. */
+async function liveSaveManual(aObj) {
+  const balEl = document.getElementById('macc-bal');
+  const resources = [];
+  (aObj.res || []).forEach((r) => {
+    const el = document.getElementById(`mres-${r.id}`);
+    if (!el) return;
+    const delta = num(el.value) - (Number(r.gb) || 0);
+    if (Math.abs(delta) > 0.001) resources.push({ resource_id: r.id, gb: delta });
+  });
+  const body = { resources };
+  if (balEl) body.balance_rub = num(balEl.value);
+  try {
+    await liveApi.manualUsage(aObj.id, body);
+    closeSheet();
+    await reloadLive();
+    toast('Данные трафика обновлены вручную');
+  } catch (err) {
+    if (!is401(err)) showApiError(err, 'Не удалось сохранить трафик');
+  }
 }
 
 export function goHome() {
@@ -261,7 +538,7 @@ function render() {
 }
 
 // Global Event Delegation
-document.addEventListener('click', (e) => {
+document.addEventListener('click', async (e) => {
   // Close the appearance popover when clicking anywhere outside of it
   // (never on the same click that opened it — #look-btn stops propagation).
   const pop = document.getElementById('look-pop');
@@ -427,6 +704,10 @@ document.addEventListener('click', (e) => {
     }
 
     case 'sent': {
+      if (S.live) {
+        liveSent();
+        break;
+      }
       S.pending = { by: S.me };
       render();
       const c = calc(S);
@@ -435,24 +716,33 @@ document.addEventListener('click', (e) => {
     }
 
     case 'cancelSent':
+      if (S.live) {
+        liveCancelSent();
+        break;
+      }
       S.pending = null;
       render();
       toast('Отметка о переводе отменена');
       break;
 
-    case 'confirm': {
-      const how = S.pending
-        ? `${nm(S.pending.by, S)} отметил · ${nm(S.me, S)} подтвердил`
-        : `${nm(S.me, S)} подтвердил без запроса`;
-      const settlementRecord = settle(how, S);
-      render();
-      triggerLogoAnim('merge');
-      toast('Расчёт записан в историю', () => {
-        undoSettle(settlementRecord.id, S);
+    case 'confirm':
+      if (S.live) {
+        liveConfirm();
+        break;
+      }
+      {
+        const how = S.pending
+          ? `${nm(S.pending.by, S)} отметил · ${nm(S.me, S)} подтвердил`
+          : `${nm(S.me, S)} подтвердил без запроса`;
+        const settlementRecord = settle(how, S);
         render();
-      });
+        triggerLogoAnim('merge');
+        toast('Расчёт записан в историю', () => {
+          undoSettle(settlementRecord.id, S);
+          render();
+        });
+      }
       break;
-    }
 
     case 'toastUndo':
       if (window._undo) {
@@ -463,6 +753,10 @@ document.addEventListener('click', (e) => {
       break;
 
     case 'undoHist':
+      if (S.live) {
+        liveUndoSettle();
+        break;
+      }
       if (undoSettle(+v, S)) {
         render();
         toast('Расчёт отменён');
@@ -470,11 +764,36 @@ document.addEventListener('click', (e) => {
       break;
 
     case 'csv':
+      if (S.live) {
+        downloadBackendCsv(`cdn-split-history-${new Date().toISOString().slice(0, 10)}.csv`).catch(
+          (err) => {
+            if (!is401(err)) showApiError(err, 'Не удалось выгрузить CSV');
+          }
+        );
+        break;
+      }
       exportCSV(S);
       break;
 
     case 'refresh': {
       triggerLogoAnim('spin');
+      if (S.live) {
+        // LIVE: настоящий синк аккаунтов + пинг ресурсов на бэкенде
+        try {
+          const r = await liveApi.syncAll();
+          await reloadLive();
+          const list = (r && r.sync_results) || [];
+          const okN = list.filter((x) => x.success).length;
+          toast(
+            list.length
+              ? `Обновлено из API · синхронизировано ${okN} из ${list.length} аккаунтов`
+              : 'Нет аккаунтов для синхронизации'
+          );
+        } catch (err) {
+          if (!is401(err)) showApiError(err, 'Не удалось обновить данные');
+        }
+        break;
+      }
       S.accounts.forEach((x) => {
         if (x.status !== 'error') x.updated = 0;
         x.res.forEach((r) => {
@@ -556,6 +875,21 @@ document.addEventListener('click', (e) => {
     case 'editAcc': {
       const aObj = S.accounts.find((x) => String(x.id) === String(id));
       openAccSheet(aObj, S);
+      if (S.live && aObj) {
+        // LIVE: подтягиваем маскированные креденшалы для формы (токен скрыт)
+        api(`/api/accounts/${aObj.id}`)
+          .then((accRaw) => {
+            const draft = getActiveDraft();
+            if (!draft || String(draft.id) !== String(aObj.id)) return;
+            const merged = { ...draft, credentials: accRaw.credentials || {} };
+            Object.keys(accRaw.credentials || {}).forEach((k) => {
+              merged['cred:' + k] = String(accRaw.credentials[k]);
+            });
+            setActiveDraft(merged);
+            refreshAccForm(S);
+          })
+          .catch(() => {});
+      }
       break;
     }
 
@@ -567,18 +901,21 @@ document.addEventListener('click', (e) => {
 
     case 'saveManual': {
       const aObj = S.accounts.find((x) => String(x.id) === String(v));
-      if (aObj) {
-        const balInput = document.getElementById('macc-bal');
-        if (balInput) aObj.balance = parseFloat(balInput.value) || 0;
-        (aObj.res || []).forEach((r) => {
-          const resInput = document.getElementById(`mres-${r.id}`);
-          if (resInput) r.gb = parseFloat(resInput.value) || 0;
-        });
-        aObj.updated = 0;
-        closeSheet();
-        render();
-        toast('Данные трафика обновлены вручную');
+      if (!aObj) break;
+      if (S.live) {
+        liveSaveManual(aObj);
+        break;
       }
+      const balInput = document.getElementById('macc-bal');
+      if (balInput) aObj.balance = parseFloat(balInput.value) || 0;
+      (aObj.res || []).forEach((r) => {
+        const resInput = document.getElementById(`mres-${r.id}`);
+        if (resInput) r.gb = parseFloat(resInput.value) || 0;
+      });
+      aObj.updated = 0;
+      closeSheet();
+      render();
+      toast('Данные трафика обновлены вручную');
       break;
     }
 
@@ -650,14 +987,51 @@ document.addEventListener('click', (e) => {
         testRes.innerHTML =
           '<div class="checks"><div><span class="spin"></span><span class="muted">Проверяем ключ в облаке…</span></div></div>';
       }
-      setTimeout(() => {
+      setTimeout(async () => {
         const el = $('#testres');
         if (!el) return;
         const draft = getActiveDraft();
-        if (!draft || !draft.k0) {
-          const res = `<div class="checks"><div class="no">${XX}<span>Введите ключ</span></div></div>`;
+        if (!draft) return;
+        const show = (res) => {
           setTestResult(res);
           el.innerHTML = res;
+        };
+
+        if (S.live) {
+          // LIVE: настоящая проверка ключа через POST /api/accounts/validate
+          const creds = collectDraftCreds(draft, draft.prov);
+          if (!Object.keys(creds).length) {
+            show(`<div class="checks"><div class="no">${XX}<span>Введите ключ</span></div></div>`);
+            return;
+          }
+          try {
+            const k = await liveApi.validateCredentials(draft.prov, creds);
+            const need = PROV[draft.prov] ? PROV[draft.prov].need : '';
+            const okRow = (t, s) => `<div class="ok">${CHK_S}<span>${esc(t)}<small>${esc(s || '')}</small></span></div>`;
+            const noRow = (t, s) => `<div class="no">${XX}<span>${esc(t)}<small>${esc(s || '')}</small></span></div>`;
+            const res = `<div class="checks">
+              ${k.key_accepted ? okRow('Ключ рабочий', need) : noRow('Ключ не принят', k.error || '')}
+              ${
+                k.resources_read && k.resources_read.ok
+                  ? okRow('Чтение CDN-ресурсов', `найдено ${k.resources_read.count || 0} доменов`)
+                  : noRow('Нет доступа к CDN-ресурсам', need)
+              }
+              ${
+                k.balance_access && k.balance_access.ok
+                  ? okRow('Баланс и расходы', `баланс ${rub(k.balance_access.balance_rub)}`)
+                  : noRow('Нет доступа к биллингу', `добавьте право ${need}`)
+              }
+            </div>`;
+            show(res);
+          } catch (err) {
+            if (!is401(err)) show(err ? `<div class="checks"><div class="no">${XX}<span>${esc(err.detail || 'Ошибка проверки')}</span></div></div>` : '');
+          }
+          return;
+        }
+
+        // DEMO: прежняя демонстрация чек-листа
+        if (!draft.k0) {
+          show(`<div class="checks"><div class="no">${XX}<span>Введите ключ</span></div></div>`);
         } else {
           S.testN = (S.testN || 0) + 1;
           const p = PROV[draft.prov] || PROV.selectel;
@@ -671,8 +1045,7 @@ document.addEventListener('click', (e) => {
                 : `<div class="no">${XX}<span>Нет доступа к биллингу<small>добавьте право ${p.need}</small></span></div>`
             }
           </div>`;
-          setTestResult(res);
-          el.innerHTML = res;
+          show(res);
         }
       }, 900);
       break;
@@ -681,6 +1054,10 @@ document.addEventListener('click', (e) => {
     case 'saveAcc': {
       const draft = getActiveDraft();
       if (!draft) return;
+      if (S.live) {
+        liveSaveAcc(draft, v);
+        break;
+      }
       const f = {
         prov: draft.prov,
         source: draft.source || 'api',
@@ -730,6 +1107,19 @@ document.addEventListener('click', (e) => {
     }
 
     case 'delAcc':
+      if (S.live) {
+        liveApi
+          .deleteAccount(v)
+          .then(async () => {
+            closeSheet();
+            await reloadLive();
+            toast('Аккаунт удалён');
+          })
+          .catch((err) => {
+            if (!is401(err)) showApiError(err, 'Не удалось удалить аккаунт');
+          });
+        break;
+      }
       S.accounts = S.accounts.filter((x) => String(x.id) !== String(v));
       closeSheet();
       render();
@@ -739,20 +1129,65 @@ document.addEventListener('click', (e) => {
     case 'ev': {
       const b = S.bots.find((x) => String(x.id) === String(v));
       if (b && b.ev) {
-        b.ev[t.dataset.e] = b.ev[t.dataset.e] ? 0 : 1;
+        const key = t.dataset.e;
+        const next = b.ev[key] ? 0 : 1;
+        b.ev[key] = next;
         render();
+        if (S.live) {
+          // Каналы бэкенда: balance/key/down/paid. spike/newcdn/weekly в
+          // бэкенде отсутствуют — переключаются только локально.
+          const flagMap = {
+            balance: 'notify_low_balance',
+            key: 'notify_api_error',
+            down: 'notify_cdn_down',
+            paid: 'notify_settlement',
+          };
+          const flag = flagMap[key];
+          if (flag) {
+            liveApi
+              .updateBot(b.id, { [flag]: Boolean(next) })
+              .catch((err) => {
+                b.ev[key] = next ? 0 : 1; // откат локального переключателя
+                render();
+                if (!is401(err)) showApiError(err, 'Не удалось сохранить настройку бота');
+              });
+          }
+        }
       }
       break;
     }
 
     case 'delBot':
+      if (S.live) {
+        liveApi
+          .deleteBot(v)
+          .then(async () => {
+            await reloadLive();
+            toast('Бот удалён');
+          })
+          .catch((err) => {
+            if (!is401(err)) showApiError(err, 'Не удалось удалить бота');
+          });
+        break;
+      }
       S.bots = S.bots.filter((x) => String(x.id) !== String(v));
       render();
       toast('Бот удалён');
       break;
 
     case 'testBot':
-      testBotApi(v);
+      if (S.live) {
+        liveApi
+          .testBot(v)
+          .then((r) => {
+            if (r && r.success) toast(r.message || 'Тестовое сообщение отправлено');
+            else toast('Не удалось отправить: ' + ((r && r.error) || 'ошибка Telegram'));
+          })
+          .catch((err) => {
+            if (!is401(err)) showApiError(err, 'Не удалось отправить тест');
+          });
+        break;
+      }
       toast('Тестовое сообщение отправлено');
       break;
 
@@ -778,6 +1213,29 @@ document.addEventListener('click', (e) => {
     case 'saveBot': {
       const bn = $('#bn');
       const bc = $('#bc');
+      if (S.live) {
+        const bt = $('#bt');
+        const token = bt && bt.value ? bt.value.trim() : '';
+        if (!token) {
+          toast('Ошибка: введите токен бота');
+          break;
+        }
+        liveApi
+          .createBot({
+            name: (bn && bn.value) || 'Новый бот',
+            bot_token: token,
+            chat_id: (bc && bc.value) || '@chat',
+          })
+          .then(async () => {
+            closeSheet();
+            await reloadLive();
+            toast('Бот добавлен');
+          })
+          .catch((err) => {
+            if (!is401(err)) showApiError(err, 'Не удалось добавить бота');
+          });
+        break;
+      }
       S.bots.push({
         id: Date.now(),
         name: (bn && bn.value) || 'Новый бот',
@@ -790,27 +1248,54 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'addMember': {
-      const n = ['Третий', 'Четвёртый'][S.members.length - 2] || 'Участник';
-      S.members.push({ id: 'u' + Date.now(), name: n, sbp: '' });
-      render();
+    case 'addMember':
+      if (S.live) {
+        const n = ['Третий', 'Четвёртый'][S.members.length - 2] || 'Участник';
+        liveApi
+          .createParticipant(n)
+          .then(async () => {
+            await reloadLive();
+            render();
+          })
+          .catch((err) => {
+            if (!is401(err)) showApiError(err, 'Не удалось добавить участника');
+          });
+        break;
+      }
+      {
+        const n = ['Третий', 'Четвёртый'][S.members.length - 2] || 'Участник';
+        S.members.push({ id: 'u' + Date.now(), name: n, sbp: '' });
+        render();
+      }
       break;
-    }
 
-    case 'delMember': {
-      S.members = S.members.filter((m) => m.id !== v);
-      const f = S.members[0].id;
-      if (S.me === v) S.me = f;
-      S.accounts.forEach((x) => {
-        if (x.payer === v) x.payer = f;
-        (x.res || []).forEach((r) => {
-          if (r.consumer === v) r.consumer = f;
+    case 'delMember':
+      if (S.live) {
+        liveApi
+          .deleteParticipant(v)
+          .then(async () => {
+            await reloadLive();
+            toast('Участник удалён · его CDN перешли первому участнику');
+          })
+          .catch((err) => {
+            if (!is401(err)) showApiError(err, 'Не удалось удалить участника');
+          });
+        break;
+      }
+      {
+        S.members = S.members.filter((m) => m.id !== v);
+        const f = S.members[0].id;
+        if (S.me === v) S.me = f;
+        S.accounts.forEach((x) => {
+          if (x.payer === v) x.payer = f;
+          (x.res || []).forEach((r) => {
+            if (r.consumer === v) r.consumer = f;
+          });
         });
-      });
-      render();
-      toast('Участник удалён · его CDN перешли первому участнику');
+        render();
+        toast('Участник удалён · его CDN перешли первому участнику');
+      }
       break;
-    }
   }
 });
 
@@ -836,11 +1321,27 @@ document.addEventListener('input', (e) => {
 
 document.addEventListener('focusout', (e) => {
   if (e.target.dataset && e.target.dataset.a === 'rename') {
-    persistState(S);
+    const val = e.target.value.trim() || 'Без имени';
+    if (S.live) {
+      // LIVE: переименование → PUT /api/participants/{id}
+      liveApi
+        .updateParticipant(e.target.dataset.v, { name: val })
+        .then(() => reloadLive())
+        .catch((err) => {
+          if (!is401(err)) showApiError(err, 'Не удалось переименовать участника');
+        });
+    } else {
+      persistState(S);
+    }
     render();
   }
   if (e.target.dataset && e.target.dataset.a === 'sbp') {
-    persistState(S);
+    if (S.live) {
+      // LIVE: реквизиты СБП бэкенд не хранит — сохраняем локально
+      setLocalSbp(e.target.dataset.v, e.target.value);
+    } else {
+      persistState(S);
+    }
   }
 });
 
@@ -851,6 +1352,10 @@ window.addEventListener('resize', () => updateSbar(S));
 applySkin();
 applyTheme();
 render();
+updateModePill();
+
+// Mode detection & live boot (async): LIVE = backend, DEMO = localStorage+seed
+boot();
 
 // Click listeners for brand logo/title
 document.querySelectorAll('.brand, [data-act="go-home"]').forEach((el) => {
