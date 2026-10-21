@@ -120,6 +120,19 @@ export const PROV = {
 
 export const PROVKEYS = Object.keys(PROV);
 
+/**
+ * Fallback backend credential-key mapping per provider (used only when
+ * /api/providers is unavailable in LIVE mode). Matches app/data/providers_catalog.json.
+ */
+export const PROV_API_KEYS = {
+  yandex: ['oauth_token', 'folder_id'],
+  selectel: ['api_token'],
+  vk: ['api_token', 'project_id'],
+  mts: ['api_key', 'tenant_id'],
+  timeweb: ['api_token'],
+  beget: ['login', 'password'],
+};
+
 export const SKINS = {
   pixel: 'Pixel',
   air: 'Air',
